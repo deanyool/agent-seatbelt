@@ -38,6 +38,31 @@ func (r rule) matches(words []string) bool {
 	return false
 }
 
+// split breaks a line on the shell operators. Quotes aren't handled yet.
+func split(line string) [][]string {
+	for _, op := range []string{"&&", "||", "|", ";"} {
+		line = strings.ReplaceAll(line, op, "\n")
+	}
+	var out [][]string
+	for _, part := range strings.Split(line, "\n") {
+		if words := strings.Fields(part); len(words) > 0 {
+			out = append(out, words)
+		}
+	}
+	return out
+}
+
+func check(cfg rules, line string) bool {
+	for _, words := range split(line) {
+		for _, r := range cfg.Deny {
+			if r.matches(words) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func main() {
 	data, err := os.ReadFile("rules.yaml")
 	if err != nil {
@@ -49,15 +74,10 @@ func main() {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	words := strings.Fields(strings.Join(os.Args[1:], " "))
-	if len(words) == 0 {
-		return
-	}
-	for _, r := range cfg.Deny {
-		if r.matches(words) {
-			fmt.Println("blocked:", strings.Join(words, " "))
-			os.Exit(1)
-		}
+	line := strings.Join(os.Args[1:], " ")
+	if !check(cfg, line) {
+		fmt.Println("blocked:", line)
+		os.Exit(1)
 	}
 	fmt.Println("ok")
 }
