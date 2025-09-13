@@ -1,8 +1,0 @@
-deny:
-  - command: rm
-  - command: git
-    subcommand: push
-    flags: [--force, -f]
-  - command: git
-    subcommand: reset
-    flags: [--hard]

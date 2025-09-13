@@ -1,0 +1,12 @@
+rules:
+  - command: git
+    subcommand: push
+    flags: [--force, -f]
+    reason: no force pushes
+  - command: git
+    subcommand: reset
+    flags: [--hard]
+    reason: this throws away work
+  - command: git
+    subcommand: clean
+    reason: this deletes files

@@ -1,0 +1,3 @@
+rules:
+  - command: rm
+    reason: deleting files is never allowed
