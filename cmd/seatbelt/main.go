@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/deanyool/agent-seatbelt/internal/hook"
 	"github.com/deanyool/agent-seatbelt/internal/policy"
 )
 
@@ -14,6 +15,9 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "hook" {
+		os.Exit(hook.Run(os.Stdin, os.Stdout, os.Stderr, p))
 	}
 	line := strings.Join(os.Args[1:], " ")
 	if r := p.Check(line); !r.Allowed {
