@@ -10,7 +10,7 @@ import (
 	"github.com/deanyool/agent-seatbelt/internal/policy"
 )
 
-const usage = `useage:
+const usage = `usage:
   seatbelt check 'COMMAND'
   seatbelt hook
 `
