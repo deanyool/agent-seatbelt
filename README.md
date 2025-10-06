@@ -1,7 +1,17 @@
 # agent-seatbelt
 
-stops ai agents from running dangerous commands
+Stops AI coding agents from running dangerous commands.
 
-    go run . rm -rf /
+## Install
 
-todo: everything
+    go install github.com/deanyool/agent-seatbelt/cmd/seatbelt@latest
+
+## Use
+
+    seatbelt check 'git push --force'
+
+Claude Code hook, in settings.json:
+
+    {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"seatbelt hook"}]}]}}
+
+Rules live in internal/presets for now.
