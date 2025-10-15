@@ -339,6 +339,32 @@ func (p *parser) command() error {
 		if closed {
 			return p.errf("unexpected word after a compound command: %q", w.Raw)
 		}
+		first := len(cmd.Args) == 0 && len(cmd.Assigns) == 0 && len(cmd.Redirects) == 0
+		if first && !w.Quoted && !w.Dynamic {
+			switch w.Value {
+			case "if", "then", "elif", "else", "while", "until", "do", "!", "{":
+				if err := p.skipLines(); err != nil {
+					return err
+				}
+				continue
+			case "fi", "done", "}":
+				closed = true
+				continue
+			case "for":
+				if err := p.forHeader(); err != nil {
+					return err
+				}
+				continue
+			case "[[":
+				if err := p.condition(); err != nil {
+					return err
+				}
+				closed = true
+				continue
+			case "case", "esac", "select", "coproc", "function":
+				return p.errf("%q is not supported", w.Value)
+			}
+		}
 		if len(cmd.Args) == 0 && assignRe.MatchString(w.Raw) {
 			name, value, _ := strings.Cut(w.Value, "=")
 			_, raw, _ := strings.Cut(w.Raw, "=")
@@ -362,6 +388,85 @@ func (p *parser) enter() error {
 	}
 	p.depth++
 	return nil
+}
+
+// forHeader consumes "NAME [in WORDS]" and leaves the parser at the loop body.
+func (p *parser) forHeader() error {
+	p.skipBlanks()
+	if p.peek() == '(' {
+		return p.errf("C-style for loops are not supported")
+	}
+	name, err := p.word()
+	if err != nil {
+		return err
+	}
+	if name.Value == "" || name.Quoted || name.Dynamic {
+		return p.errf("expected a loop variable")
+	}
+	if err := p.skipLines(); err != nil {
+		return err
+	}
+	if p.peek() == ';' {
+		p.advance()
+		return p.skipLines()
+	}
+	w, err := p.word()
+	if err != nil {
+		return err
+	}
+	if !w.Quoted && w.Value == "do" {
+		return p.skipLines()
+	}
+	if w.Quoted || w.Value != "in" {
+		return p.errf("expected in or do after the loop variable")
+	}
+	for {
+		p.skipBlanks()
+		switch c := p.peek(); c {
+		case ';':
+			p.advance()
+			return p.skipLines()
+		case '\n':
+			return p.skipLines()
+		case 0, '&', '|', '(', ')', '<', '>':
+			return p.errf("malformed for loop")
+		}
+		if _, err := p.word(); err != nil {
+			return err
+		}
+	}
+}
+
+// condition consumes the inside of [[ ... ]]. Its operators are not shell
+// operators, but expansions inside it still run, so words are parsed normally.
+func (p *parser) condition() error {
+	for {
+		p.skipBlanks()
+		switch c := p.peek(); c {
+		case 0:
+			return p.errf("unterminated [[")
+		case '\n':
+			if err := p.newline(); err != nil {
+				return err
+			}
+			continue
+		case '&', '|', '(', ')', ';':
+			p.advance()
+			continue
+		case '<', '>':
+			if p.peek2() != '(' {
+				p.advance()
+				continue
+			}
+		}
+		w, err := p.word()
+		if err != nil {
+			return err
+		}
+		if !w.Quoted && w.Value == "]]" {
+			return nil
+		}
+	}
 }
 
 // redirect parses a redirection operator and its target.
