@@ -144,6 +144,7 @@ type parser struct {
 	pos      int
 	depth    int
 	cmds     []Command
+	heredocs []*heredoc
 }
 
 func (p *parser) errf(format string, args ...any) error {
@@ -207,7 +208,7 @@ func (p *parser) skipLines() error {
 
 func (p *parser) newline() error {
 	p.advance()
-	return nil
+	return p.readHeredocs()
 }
 
 // list parses commands until the end of input or, when closer is ')', until the
@@ -222,13 +223,13 @@ func (p *parser) list(closer byte) error {
 			if closer != 0 {
 				return p.errf("unterminated subshell or command substitution")
 			}
-			return nil
+			return p.noPendingHeredocs()
 		case ')':
 			if closer != ')' {
 				return p.errf("unexpected )")
 			}
 			p.pos++
-			return nil
+			return p.noPendingHeredocs()
 		case ';', '&', '|':
 			return p.errf("unexpected %q", string(c))
 		}
@@ -472,6 +473,9 @@ func (p *parser) condition() error {
 // redirect parses a redirection operator and its target.
 func (p *parser) redirect(cmd *Command, fd string) error {
 	op := p.redirectOp()
+	if op == "<<" || op == "<<-" {
+		return p.heredocStart(cmd, fd, op)
+	}
 	p.skipBlanks()
 	w, err := p.word()
 	if err != nil {
@@ -654,6 +658,9 @@ func (p *parser) dollar(b *wordBuilder, quoted bool) error {
 // substitution parses $(...), <(...) or >(...) with the parser at the open paren.
 // The commands inside are real commands and join the list.
 func (p *parser) substitution(b *wordBuilder, quoted bool) error {
+	if len(p.heredocs) > 0 {
+		return p.errf("command substitution on a line with a pending here-document")
+	}
 	if err := p.enter(); err != nil {
 		return err
 	}

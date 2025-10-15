@@ -117,6 +117,16 @@ func TestParseCommands(t *testing.T) {
 		{"leading redirect", "> b a", []string{"a"}},
 		{"redirect subst", "a > $(b)", []string{"b", "a"}},
 
+		{"heredoc", "cat <<EOF\nrm -rf /\nEOF", []string{"cat"}},
+		{"heredoc then command", "cat <<EOF\nhi\nEOF\nb", []string{"cat", "b"}},
+		{"heredoc quoted", "cat <<'EOF'\n$(a)\nEOF", []string{"cat"}},
+		{"heredoc backslash delimiter", "cat <<\\EOF\n$(a)\nEOF", []string{"cat"}},
+		{"heredoc strip tabs", "cat <<-EOF\n\thi\n\tEOF\nb", []string{"cat", "b"}},
+		{"heredoc two", "cat <<A <<B\na\nA\nb\nB\nc", []string{"cat", "c"}},
+		{"heredoc same line chain", "cat <<EOF && b\nhi\nEOF", []string{"cat", "b"}},
+		{"heredoc in substitution", "git commit -m \"$(cat <<'EOF'\nmessage\nEOF\n)\"", []string{"cat", "git commit -m $"}},
+		{"heredoc body with balanced parens", "a $(b <<'E'\nf(x)\nE\n)", []string{"b", "a $"}},
+		{"heredoc body with an apostrophe", "a $(b <<'E'\nit's\nE\n)", []string{"b", "a $"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -168,6 +178,10 @@ func TestParseRejects(t *testing.T) {
 		{"param indirection", "echo ${!a}"},
 		{"param subscript", "echo ${a[$(b)]}"},
 		{"param quotes", `echo ${a:-"b"}`},
+		{"heredoc unclosed", "cat <<EOF\nhi"},
+		{"heredoc no body", "cat <<EOF"},
+		{"heredoc dynamic delimiter", "cat <<$x\nhi\n$x"},
+		{"heredoc pending in substitution", "cat <<EOF $(a\n)\nhi\nEOF"},
 		{"word after group", "{ a; } b"},
 		{"word after subshell", "(a) b"},
 		{"too deep", strings.Repeat("(", maxDepth+2) + "a" + strings.Repeat(")", maxDepth+2)},
