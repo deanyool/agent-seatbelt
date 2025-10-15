@@ -442,6 +442,14 @@ func (p *parser) word() (Word, error) {
 			if err := p.doubleQuoted(&b, '"'); err != nil {
 				return Word{}, err
 			}
+		case '$':
+			if err := p.dollar(&b, false); err != nil {
+				return Word{}, err
+			}
+		case '`':
+			if err := p.backtick(&b, false); err != nil {
+				return Word{}, err
+			}
 		default:
 			b.unquoted(c)
 			p.pos++
@@ -488,11 +496,54 @@ func (p *parser) doubleQuoted(b *wordBuilder, term byte) error {
 			}
 			b.lit(n)
 			p.pos++
+		case '$':
+			if err := p.dollar(b, true); err != nil {
+				return err
+			}
+		case '`':
+			if err := p.backtick(b, true); err != nil {
+				return err
+			}
 		default:
 			b.lit(c)
 			p.pos++
 		}
 	}
+}
+
+func (p *parser) dollar(b *wordBuilder, quoted bool) error {
+	p.advance()
+	c := p.peek()
+	switch {
+	case c == '(':
+		if p.peek2() == '(' {
+			return p.arithmetic(b, quoted)
+		}
+		return p.substitution(b, quoted)
+	case c == '{':
+		return p.parameter(b, quoted)
+	case c == '\'' && !quoted:
+		return p.ansiC(b)
+	case c == '"' && !quoted:
+		p.advance()
+		b.word.Quoted = true
+		return p.doubleQuoted(b, '"')
+	case isNameStart(c):
+		for isNameByte(p.peek()) {
+			p.pos++
+		}
+		b.expansion(quoted)
+	case strings.IndexByte("@*#?$!-0123456789", c) >= 0:
+		p.advance()
+		b.expansion(quoted)
+	default:
+		if quoted {
+			b.lit('$')
+		} else {
+			b.unquoted('$')
+		}
+	}
+	return nil
 }
 
 // substitution parses $(...), <(...) or >(...) with the parser at the open paren.
@@ -509,6 +560,138 @@ func (p *parser) substitution(b *wordBuilder, quoted bool) error {
 	}
 	b.expansion(quoted)
 	return nil
+}
+
+func (p *parser) backtick(b *wordBuilder, quoted bool) error {
+	p.pos++
+	var inner strings.Builder
+	for {
+		if p.pos >= len(p.src) {
+			return p.errf("unterminated backtick")
+		}
+		c := p.src[p.pos]
+		if c == '`' {
+			p.pos++
+			break
+		}
+		if c == '\\' && p.pos+1 < len(p.src) {
+			n := p.src[p.pos+1]
+			if n == '`' || n == '\\' || n == '$' || (quoted && n == '"') {
+				inner.WriteByte(n)
+				p.pos += 2
+				continue
+			}
+		}
+		inner.WriteByte(c)
+		p.pos++
+	}
+	if p.depth >= maxDepth {
+		return p.errf("commands are nested too deeply")
+	}
+	sub, err := parseAt(inner.String(), p.depth+1)
+	if err != nil {
+		return err
+	}
+	p.cmds = append(p.cmds, sub.Commands...)
+	b.expansion(quoted)
+	return nil
+}
+
+// arithmetic accepts $(( )) holding only numbers and operators. A name is not
+// safe: bash evaluates a variable's contents as an expression, so x='a[$(cmd)]'
+// followed by $((x)) runs cmd.
+func (p *parser) arithmetic(b *wordBuilder, quoted bool) error {
+	p.advance()
+	p.advance()
+	depth := 2
+	for depth > 0 {
+		c := p.peek()
+		switch c {
+		case 0:
+			return p.errf("unterminated arithmetic expansion")
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 1 && p.peek2() != ')' {
+				return p.errf("ambiguous $(( ))")
+			}
+		default:
+			if strings.IndexByte("0123456789 \t+-*/%<>=!&|^~?:,", c) < 0 {
+				return p.errf("arithmetic on anything but numbers is not supported")
+			}
+		}
+		p.advance()
+	}
+	b.expansion(quoted)
+	return nil
+}
+
+// parameter accepts ${NAME} and its pattern and default forms. Anything that
+// could run a command or evaluate a value as code is rejected, including
+// indirection, array subscripts and the @P prompt transform.
+func (p *parser) parameter(b *wordBuilder, quoted bool) error {
+	p.advance()
+	if p.peek() == '!' {
+		return p.errf("indirect expansion is not supported")
+	}
+	depth := 1
+	for depth > 0 {
+		c := p.peek()
+		switch c {
+		case 0:
+			return p.errf("unterminated ${")
+		case '`', '\'', '"', '\\', '[':
+			return p.errf("${...} containing %q is not supported", string(c))
+		case '$':
+			switch p.peek2() {
+			case '(':
+				return p.errf("command substitution inside ${...} is not supported")
+			case '{':
+				depth++
+				p.advance()
+			}
+		case '<', '>':
+			if p.peek2() == '(' {
+				return p.errf("process substitution inside ${...} is not supported")
+			}
+		case '@':
+			return p.errf("${...@} transforms are not supported")
+		case '}':
+			depth--
+		}
+		p.advance()
+	}
+	b.expansion(quoted)
+	return nil
+}
+
+// ansiC skips $'...'. The value is deliberately not decoded: it is treated as
+// unknown, so $'\x72\x6d' can never be read as anything but opaque.
+func (p *parser) ansiC(b *wordBuilder) error {
+	p.pos++
+	for p.pos < len(p.src) {
+		switch p.src[p.pos] {
+		case '\\':
+			p.pos += 2
+		case '\'':
+			p.pos++
+			b.word.Quoted = true
+			b.expansion(true)
+			return nil
+		default:
+			p.pos++
+		}
+	}
+	return p.errf("unterminated $'")
+}
+
+func isNameStart(c byte) bool {
+	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+func isNameByte(c byte) bool {
+	return isNameStart(c) || (c >= '0' && c <= '9')
 }
 
 func allDigits(s string) bool {

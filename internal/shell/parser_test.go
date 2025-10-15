@@ -60,6 +60,7 @@ func TestParseCommands(t *testing.T) {
 		{"backslash space", `echo a\ b`, []string{"echo a b"}},
 		{"joined pieces", `e"c"'h'\o hi`, []string{"echo hi"}},
 		{"operators in quotes", `echo "a && b" 'c; d'`, []string{"echo a && b c; d"}},
+		{"dq escapes", `echo "a\"b\\c\$d\e"`, []string{`echo a"b\c$d\e`}},
 		{"sq keeps backslash", `echo 'a\b'`, []string{`echo a\b`}},
 		{"empty quotes", `echo "" ''`, []string{"echo  "}},
 
@@ -68,8 +69,22 @@ func TestParseCommands(t *testing.T) {
 		{"hash in word", "a b#c", []string{"a b#c"}},
 
 		{"env prefix", "FOO=1 BAR='x y' git status", []string{"git status"}},
+		{"var", "echo $HOME ${HOME} ${HOME:-x} ${#HOME}", []string{"echo $ $ $ $"}},
+		{"special vars", "echo $? $$ $1 $@", []string{"echo $ $ $ $"}},
+		{"literal dollar", "echo $ a$", []string{"echo $ a$"}},
+		{"command subst", "echo $(a)", []string{"a", "echo $"}},
+		{"backtick", "echo `a`", []string{"a", "echo $"}},
+		{"backtick nested", "echo `a \\`b\\``", []string{"b", "a $", "echo $"}},
+		{"subst in dq", `echo "x $(a) y"`, []string{"a", "echo x $ y"}},
+		{"backtick in dq", "echo \"x `a` y\"", []string{"a", "echo x $ y"}},
+		{"nested subst", "echo $(a $(b))", []string{"b", "a $", "echo $"}},
+		{"subst with quotes", `echo "$(a "b c")"`, []string{"a b c", "echo $"}},
 		{"procsub in", "diff <(a) <(b)", []string{"a", "b", "diff $ $"}},
 		{"procsub out", "tee >(a)", []string{"a", "tee $"}},
+		{"arithmetic", "echo $((1 + 2))", []string{"echo $"}},
+		{"ansi c", `echo $'a\'b'`, []string{"echo $"}},
+		{"locale", `echo $"a"`, []string{"echo a"}},
+		{"assignment subst", "x=$(a)", []string{"a"}},
 
 		{"redirect out", "a > b c", []string{"a c"}},
 		{"redirect fd", "a 2>&1", []string{"a"}},
@@ -80,7 +95,9 @@ func TestParseCommands(t *testing.T) {
 		{"clobber", "a >| b", []string{"a"}},
 		{"read write", "a <> b", []string{"a"}},
 		{"here string", "a <<< b", []string{"a"}},
+		{"here string subst", "a <<< $(b)", []string{"b", "a"}},
 		{"leading redirect", "> b a", []string{"a"}},
+		{"redirect subst", "a > $(b)", []string{"b", "a"}},
 
 	}
 	for _, tt := range tests {
@@ -100,6 +117,9 @@ func TestParseRejects(t *testing.T) {
 	}{
 		{"open single quote", "echo 'a"},
 		{"open double quote", `echo "a`},
+		{"open subst", "echo $(a"},
+		{"open backtick", "echo `a"},
+		{"open param", "echo ${a"},
 		{"open subshell", "(a"},
 		{"stray close", "a)"},
 		{"trailing backslash", `a \`},
@@ -115,8 +135,19 @@ func TestParseRejects(t *testing.T) {
 		{"function", "f() { a; }"},
 		{"array", "a=(1 2)"},
 		{"arith command", "((x++))"},
+		{"arith name", "echo $((x))"},
+		{"arith substitution", "echo $(( $(a) ))"},
+		{"arith var", "echo $(( $x ))"},
+		{"ambiguous arith", "echo $((a) (b))"},
+		{"param subst", "echo ${a:-$(b)}"},
+		{"param backtick", "echo ${a:-`b`}"},
+		{"param prompt transform", "echo ${a@P}"},
+		{"param indirection", "echo ${!a}"},
+		{"param subscript", "echo ${a[$(b)]}"},
+		{"param quotes", `echo ${a:-"b"}`},
 		{"word after subshell", "(a) b"},
 		{"too deep", strings.Repeat("(", maxDepth+2) + "a" + strings.Repeat(")", maxDepth+2)},
+		{"too deep substitution", strings.Repeat("$(", maxDepth+2) + "a" + strings.Repeat(")", maxDepth+2)},
 		{"too long", strings.Repeat("a", maxSource+1)},
 	}
 	for _, tt := range tests {
@@ -140,6 +171,10 @@ func TestWordFlags(t *testing.T) {
 		{src: "a", prefix: "a"},
 		{src: `"a"`, quoted: true, prefix: "a"},
 		{src: `\a`, quoted: true, prefix: "a"},
+		{src: "$a", dynamic: true, split: true},
+		{src: `"$a"`, dynamic: true, quoted: true},
+		{src: "b$a", dynamic: true, split: true, prefix: "b"},
+		{src: `"b$a"`, dynamic: true, quoted: true, prefix: "b"},
 		{src: "*.go", glob: true, prefix: "*.go"},
 		{src: "a?", glob: true, prefix: "a?"},
 		{src: "[ab]", glob: true, prefix: "[ab]"},
@@ -152,6 +187,7 @@ func TestWordFlags(t *testing.T) {
 		{src: "{a}", prefix: "{a}"},
 		{src: `{a\,b}`, quoted: true, prefix: "{a,b}"},
 		{src: "'{a,b}'", quoted: true, prefix: "{a,b}"},
+		{src: "$'a'", dynamic: true, quoted: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.src, func(t *testing.T) {
@@ -170,6 +206,34 @@ func TestWordFlags(t *testing.T) {
 	}
 }
 
+func TestAssignments(t *testing.T) {
+	s, err := Parse(`A=1 B+=2 C="x y" D=$(a) git status`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := s.Commands[len(s.Commands)-1]
+	var names []string
+	for _, a := range last.Assigns {
+		names = append(names, a.Name)
+	}
+	if want := []string{"A", "B", "C", "D"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("names = %q, want %q", names, want)
+	}
+	if got := last.Assigns[2].Value.Value; got != "x y" {
+		t.Errorf("C = %q", got)
+	}
+	if !last.Assigns[3].Value.Dynamic {
+		t.Error("D should be dynamic")
+	}
+
+	// A quoted name is a program, not an assignment, and an assignment split by a
+	// line continuation is still an assignment.
+	s, err = Parse(`"A"=1 rm`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRedirects(t *testing.T) {
 	tests := []struct {
 		src    string
@@ -185,9 +249,11 @@ func TestRedirects(t *testing.T) {
 		{"a &>> f", "&>>", "f", true},
 		{"a >& f", ">&", "f", true},
 		{"a 2>&1", ">&", "1", false},
+		{"a >&-", ">&", "-", false},
 		{"a < f", "<", "f", false},
 		{"a <&3", "<&", "3", false},
 		{"a <<< f", "<<<", "f", false},
+		{"a >&$x", ">&", Hole, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.src, func(t *testing.T) {
