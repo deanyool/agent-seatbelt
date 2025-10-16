@@ -38,7 +38,18 @@ func (p *parser) readHeredocs() error {
 		if err != nil {
 			return err
 		}
-		_ = body
+		if h.quoted {
+			continue
+		}
+		sub := &parser{src: body, depth: p.depth + 1}
+		if sub.depth > maxDepth {
+			return p.errf("commands are nested too deeply")
+		}
+		var ignored wordBuilder
+		if err := sub.doubleQuoted(&ignored, 0); err != nil {
+			return err
+		}
+		p.cmds = append(p.cmds, sub.cmds...)
 	}
 	return nil
 }
