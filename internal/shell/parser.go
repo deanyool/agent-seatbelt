@@ -151,8 +151,13 @@ func (p *parser) errf(format string, args ...any) error {
 	return &Error{Pos: p.pos, Msg: fmt.Sprintf(format, args...)}
 }
 
-// peek returns the current byte, or 0 at the end of input.
+// peek returns the current byte, or 0 at the end of input. A backslash-newline
+// vanishes before the shell tokenizes anything, so peek drops those first. This
+// is what keeps r\<newline>m and $\<newline>(x) from slipping through.
 func (p *parser) peek() byte {
+	for p.pos+1 < len(p.src) && p.src[p.pos] == '\\' && p.src[p.pos+1] == '\n' {
+		p.pos += 2
+	}
 	if p.pos >= len(p.src) {
 		return 0
 	}

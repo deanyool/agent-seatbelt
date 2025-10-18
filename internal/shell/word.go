@@ -109,7 +109,7 @@ func (b *wordBuilder) expansion(quoted bool) {
 }
 
 func (b *wordBuilder) finish(raw string) Word {
-	b.word.Raw = raw
+	b.word.Raw = strings.ReplaceAll(raw, "\\\n", "")
 	b.word.Value = b.val.String()
 	if b.brace.expanded {
 		b.word.Dynamic = true

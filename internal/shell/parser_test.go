@@ -81,6 +81,10 @@ func TestParseCommands(t *testing.T) {
 		{"dq escapes", `echo "a\"b\\c\$d\e"`, []string{`echo a"b\c$d\e`}},
 		{"sq keeps backslash", `echo 'a\b'`, []string{`echo a\b`}},
 		{"empty quotes", `echo "" ''`, []string{"echo  "}},
+		{"continuation", "ec\\\nho hi", []string{"echo hi"}},
+		{"continuation in operator", "a &\\\n& b", []string{"a", "b"}},
+		{"continuation in dq", "echo \"a\\\nb\"", []string{"echo ab"}},
+		{"continuation in sq stays", "echo 'a\\\nb'", []string{"echo a\\\nb"}},
 
 		{"comment", "a # b; c", []string{"a"}},
 		{"comment line", "# a\nb", []string{"b"}},
@@ -130,6 +134,7 @@ func TestParseCommands(t *testing.T) {
 		{"heredoc in substitution", "git commit -m \"$(cat <<'EOF'\nmessage\nEOF\n)\"", []string{"cat", "git commit -m $"}},
 		{"heredoc body with balanced parens", "a $(b <<'E'\nf(x)\nE\n)", []string{"b", "a $"}},
 		{"heredoc body with an apostrophe", "a $(b <<'E'\nit's\nE\n)", []string{"b", "a $"}},
+		{"heredoc continuation joins delimiter", "cat <<EOF\nx\\\nEOF\nEOF\nb", []string{"cat", "b"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -272,6 +277,13 @@ func TestAssignments(t *testing.T) {
 	s, err = Parse(`"A"=1 rm`)
 	if err != nil {
 		t.Fatal(err)
+	}
+	s, err = Parse("A\\\n=1 rm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Commands[0].Name(); got != "rm" {
+		t.Errorf("continued assignment name = %q", got)
 	}
 }
 
