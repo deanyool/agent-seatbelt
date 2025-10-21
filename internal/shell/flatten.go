@@ -32,6 +32,14 @@ func flattenCommand(c Command, depth int) ([]Command, error) {
 		return nil, err
 	}
 	name := c.Name()
+	switch {
+	case isShell(name):
+		return flattenShell(c, depth)
+	case name == "eval":
+		return flattenJoined(c, c.Args[1:], depth)
+	case name == "find":
+		return flattenFind(c, depth)
+	}
 	w, ok := wrappers[name]
 	if !ok {
 		return []Command{c}, nil
@@ -65,6 +73,14 @@ func checkProgram(w Word) error {
 		return fmt.Errorf("the program name %s is a zsh expansion", w.Raw)
 	}
 	return nil
+}
+
+func isShell(name string) bool {
+	switch name {
+	case "sh", "bash", "zsh", "dash", "ksh", "ash", "fish":
+		return true
+	}
+	return false
 }
 
 func child(c Command, via string, args []Word) Command {
@@ -114,4 +130,98 @@ func flattenJoined(c Command, args []Word, depth int) ([]Command, error) {
 		return nil, err
 	}
 	return append([]Command{outer}, got...), nil
+}
+
+// flattenShell handles sh, bash and friends. With -c the script is parsed in
+// place. With a file it is an ordinary program whose contents are out of reach.
+// With neither, it runs whatever arrives on stdin, which can't be inspected.
+func flattenShell(c Command, depth int) ([]Command, error) {
+	name := c.Name()
+	args := c.Args[1:]
+	takesCode := false
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a.Dynamic {
+			return nil, fmt.Errorf("%s: arguments are only known at run time", name)
+		}
+		v := a.Value
+		switch {
+		case v == "--" || v == "-":
+			if i+1 >= len(args) {
+				return nil, fmt.Errorf("%s: reads commands from stdin", name)
+			}
+			i++
+			return shellOperand(c, args[i], takesCode, depth)
+		case v == "--rcfile", v == "--init-file", v == "-o", v == "+o", v == "-O", v == "+O":
+			i++
+		case strings.HasPrefix(v, "--"):
+		case strings.HasPrefix(v, "-") || strings.HasPrefix(v, "+"):
+			if strings.ContainsRune(v, 's') {
+				return nil, fmt.Errorf("%s: reads commands from stdin", name)
+			}
+			if strings.ContainsRune(v, 'c') {
+				takesCode = true
+			}
+			if last := v[len(v)-1]; last == 'o' || last == 'O' {
+				i++
+			}
+		default:
+			return shellOperand(c, a, takesCode, depth)
+		}
+	}
+	return nil, fmt.Errorf("%s: reads commands from stdin", name)
+}
+
+func shellOperand(c Command, operand Word, takesCode bool, depth int) ([]Command, error) {
+	if !takesCode {
+		return []Command{c}, nil
+	}
+	if !operand.Fixed() {
+		return nil, fmt.Errorf("%s -c: the script is only known at run time", c.Name())
+	}
+	got, err := reparse(operand.Value, c, c.Name(), depth)
+	if err != nil {
+		return nil, err
+	}
+	outer := c
+	outer.Wrapper = true
+	return append([]Command{outer}, got...), nil
+}
+
+// flattenFind pulls out -exec style commands. The placeholder {} is a file name
+// that isn't known yet.
+func flattenFind(c Command, depth int) ([]Command, error) {
+	out := []Command{c}
+	args := c.Args
+	for i := 1; i < len(args); i++ {
+		switch args[i].Value {
+		case "-exec", "-execdir", "-ok", "-okdir":
+		default:
+			continue
+		}
+		var inner []Word
+		j := i + 1
+		for ; j < len(args); j++ {
+			v := args[j].Value
+			if v == ";" || (v == "+" && len(inner) > 0 && inner[len(inner)-1].Raw == "{}") {
+				break
+			}
+			if v == "{}" {
+				inner = append(inner, Word{Raw: "{}", Value: Hole, Dynamic: true, Split: true})
+				continue
+			}
+			inner = append(inner, args[j])
+		}
+		if j >= len(args) || len(inner) == 0 {
+			return nil, fmt.Errorf("find: malformed %s", args[i].Value)
+		}
+		found := Command{Via: append(append([]string(nil), c.Via...), "find"), Args: inner}
+		got, err := flattenCommand(found, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, got...)
+		i = j
+	}
+	return out, nil
 }
