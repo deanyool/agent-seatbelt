@@ -2,4 +2,4 @@
 package version
 
 // Version is the seatbelt release. Release builds may override it with -ldflags.
-var Version = "0.1.0"
+var Version = "0.2.0"
