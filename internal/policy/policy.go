@@ -41,18 +41,22 @@ func Default() (*Policy, error) {
 	return p, nil
 }
 
-func (r Rule) matches(words []string) bool {
-	if words[0] != r.Command {
+func (r Rule) matches(c shell.Command) bool {
+	if c.Name() != r.Command {
 		return false
 	}
-	if r.Subcommand != "" && (len(words) < 2 || words[1] != r.Subcommand) {
+	var values []string
+	for _, w := range c.Args[1:] {
+		values = append(values, w.Value)
+	}
+	if r.Subcommand != "" && (len(values) == 0 || values[0] != r.Subcommand) {
 		return false
 	}
 	if len(r.Flags) == 0 {
 		return true
 	}
-	for _, w := range words {
-		if slices.Contains(r.Flags, w) {
+	for _, v := range values {
+		if slices.Contains(r.Flags, v) {
 			return true
 		}
 	}
@@ -65,11 +69,23 @@ type Result struct {
 	Reason  string
 }
 
-// Check tests every part of a command line.
+// Check tests every command a line would run. A line that can't be parsed is
+// refused.
 func (p *Policy) Check(line string) Result {
-	for _, words := range shell.Split(line) {
+	script, err := shell.Parse(line)
+	if err != nil {
+		return Result{Reason: "cannot read this command: " + err.Error()}
+	}
+	cmds, err := shell.Flatten(script)
+	if err != nil {
+		return Result{Reason: "cannot read this command: " + err.Error()}
+	}
+	for _, c := range cmds {
+		if len(c.Args) == 0 {
+			continue
+		}
 		for _, r := range p.Rules {
-			if r.matches(words) {
+			if r.matches(c) {
 				return Result{Reason: r.Reason}
 			}
 		}
