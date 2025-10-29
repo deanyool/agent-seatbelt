@@ -1,12 +1,233 @@
+name: git
+description: Reading is free. Local writes and pushes ask first. History rewrites and deletions are refused.
 rules:
-  - command: git
-    subcommand: push
-    flags: [--force, -f]
-    reason: no force pushes
-  - command: git
-    subcommand: reset
-    flags: [--hard]
+  - id: read
+    command: git
+    subcommand:
+      - status
+      - log
+      - diff
+      - show
+      - blame
+      - shortlog
+      - describe
+      - rev-parse
+      - rev-list
+      - ls-files
+      - ls-tree
+      - ls-remote
+      - cat-file
+      - grep
+      - merge-base
+      - name-rev
+      - count-objects
+      - for-each-ref
+      - show-ref
+      - show-branch
+      - check-ignore
+      - check-attr
+      - diff-tree
+      - diff-files
+      - diff-index
+      - var
+      - version
+      - help
+      - fetch
+      - branch $
+      - tag $
+      - remote $
+      - remote show
+      - remote get-url
+      - reflog $
+      - reflog show
+      - stash list
+      - stash show
+      - worktree list
+      - submodule status
+      - notes list
+      - notes show
+    decision: allow
+  - id: version
+    command: git
+    flags: [--version, --help]
+    decision: allow
+  - id: read-lists
+    command: git
+    subcommand: [branch, tag]
+    flags: [-l, --list, --show-current, --contains, --no-contains, --merged, --no-merged]
+    decision: allow
+  - id: read-config
+    command: git
+    subcommand: [config]
+    flags: [--get, --get-all, --get-regexp, --list, -l]
+    decision: allow
+  - id: clean-preview
+    command: git
+    subcommand: [clean]
+    flags: [-n, --dry-run]
+    decision: allow
+
+  - id: write
+    command: git
+    subcommand:
+      - add
+      - commit
+      - checkout
+      - switch
+      - merge
+      - rebase
+      - cherry-pick
+      - revert
+      - stash $
+      - stash push
+      - stash save
+      - stash pop
+      - stash apply
+      - stash branch
+      - pull
+      - push
+      - mv
+      - init
+      - clone
+      - am
+      - apply
+      - reset
+      - restore
+      - bisect
+      - sparse-checkout
+      - worktree add
+      - submodule update
+      - submodule add
+      - submodule init
+      - notes add
+      - remote add
+      - remote set-url
+      - remote rename
+      - lfs
+    decision: confirm
+    reason: this changes the repository
+
+  - id: write-refs
+    command: git
+    subcommand: ["branch *", "tag *"]
+    flags:
+      none: [-l, --list, --show-current, --contains, --no-contains, --merged, --no-merged]
+    decision: confirm
+    reason: this creates a branch or tag
+
+  - id: writes-file
+    command: git
+    flags: [--output, --ext-diff, --open-files-in-pager]
+    decision: deny
+    reason: this flag writes a file or runs an external program
+  - id: grep-pager
+    command: git
+    subcommand: [grep]
+    flags: [-O]
+    decision: deny
+    reason: git grep -O runs a program
+  - id: skip-hooks
+    command: git
+    flags: [--no-verify]
+    decision: deny
+    reason: hooks are there for a reason
+  - id: commit-skip-hooks
+    command: git
+    subcommand: [commit]
+    flags: [-n]
+    decision: deny
+    reason: git commit -n skips hooks
+  - id: force-push
+    command: git
+    subcommand: [push]
+    flags: [--force, -f, --force-with-lease, --force-if-includes, --mirror, --prune]
+    decision: deny
+    reason: force pushes rewrite shared history
+  - id: delete-remote-ref
+    command: git
+    subcommand: [push]
+    flags: [--delete, -d]
+    decision: deny
+    reason: this deletes a remote branch or tag
+  - id: refspec-tricks
+    command: git
+    subcommand: [push]
+    args: ["+*", ":*"]
+    decision: deny
+    reason: a plus refspec forces the push and a colon refspec deletes the branch
+  - id: hard-reset
+    command: git
+    subcommand: [reset]
+    flags: [--hard, --merge, --keep]
+    decision: deny
     reason: this throws away work
-  - command: git
-    subcommand: clean
-    reason: this deletes files
+  - id: clean
+    command: git
+    subcommand: [clean]
+    flags:
+      none: [-n, --dry-run]
+    decision: deny
+    reason: git clean deletes untracked files
+  - id: delete-branch
+    command: git
+    subcommand: [branch]
+    flags: [-d, -D, --delete, -f, --force, -M, -C]
+    decision: deny
+    reason: this deletes or overwrites a branch
+  - id: delete-tag
+    command: git
+    subcommand: [tag]
+    flags: [-d, --delete, -f, --force]
+    decision: deny
+    reason: this deletes or overwrites a tag
+  - id: discard-changes
+    command: git
+    subcommand: [checkout, switch]
+    flags: [-f, --force, --discard-changes]
+    decision: deny
+    reason: this throws away local changes
+  - id: discard-pathspec
+    command: git
+    subcommand: [checkout]
+    args: [".", "./*", ":/"]
+    decision: deny
+    reason: this throws away local changes
+  - id: restore-worktree
+    command: git
+    subcommand: [restore]
+    flags:
+      none: [--staged, -S]
+    decision: deny
+    reason: this throws away local changes
+  - id: delete-history
+    command: git
+    subcommand:
+      - rm
+      - filter-branch
+      - filter-repo
+      - prune
+      - stash drop
+      - stash clear
+      - reflog expire
+      - reflog delete
+      - remote remove
+      - remote rm
+      - worktree remove
+      - worktree prune
+      - notes remove
+      - submodule deinit
+      - lfs prune
+      - replace
+    decision: deny
+    reason: this deletes files or history
+  - id: delete-ref
+    command: git
+    subcommand: [update-ref, symbolic-ref]
+    decision: deny
+    reason: this edits refs directly
+  - id: gc-prune
+    command: git
+    subcommand: [gc]
+    flags: [--prune, --aggressive]
+    decision: deny
+    reason: this permanently removes unreachable commits

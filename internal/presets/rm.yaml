@@ -1,3 +1,47 @@
+name: rm
+description: Deleting files is never allowed, in any spelling.
+commands:
+  find:
+    single_dash: true
+    value_flags: [-name, -iname, -path, -ipath, -type, -maxdepth, -mindepth, -mtime, -newer, -size, -user, -group, -perm, -regex, -iregex]
+  dd: {}
 rules:
-  - command: rm
+  - id: delete
+    command: [rm, grm, rmdir, grmdir, unlink, gunlink, shred, gshred, srm, wipe]
+    decision: deny
     reason: deleting files is never allowed
+  - id: find
+    command: find
+    decision: allow
+  - id: find-delete
+    command: find
+    flags: [-delete]
+    decision: deny
+    reason: find -delete removes files
+  - id: find-write
+    command: find
+    flags: [-fprint, -fprint0, -fprintf, -fls]
+    decision: confirm
+    reason: this find writes to a file
+  - id: disk
+    command: [mkfs, mke2fs, newfs, fdisk, parted, wipefs, sfdisk, "mkfs.ext4", "mkfs.xfs", "mkfs.btrfs", "mkfs.vfat"]
+    decision: deny
+    reason: this erases a disk or partition
+  - id: dd-write
+    command: dd
+    args: ["of=*"]
+    decision: deny
+    reason: dd can overwrite anything it is pointed at
+  - id: truncate
+    command: [truncate, gtruncate]
+    decision: deny
+    reason: truncate destroys file contents
+  - id: rsync
+    command: rsync
+    decision: confirm
+    reason: rsync changes files at the destination
+  - id: rsync-delete
+    command: rsync
+    flags: [--delete, --delete-before, --delete-during, --delete-delay, --delete-after, --delete-excluded, --del, --remove-source-files]
+    decision: deny
+    reason: this rsync deletes files

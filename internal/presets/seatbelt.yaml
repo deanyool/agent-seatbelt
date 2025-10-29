@@ -1,0 +1,16 @@
+name: seatbelt
+description: Keeps an agent from approving its own plans or turning seatbelt off. Always loaded.
+commands:
+  seatbelt:
+    global_flags:
+      value: [--policy]
+rules:
+  - id: read
+    command: seatbelt
+    subcommand: [check, version, help, log, "plan list", "plan show", "plan add", "preset list", "preset show", "policy show", "policy validate"]
+    decision: allow
+  - id: self-approval
+    command: seatbelt
+    subcommand: ["plan approve", "plan apply", "plan clear", init, shim, hook, run]
+    decision: deny
+    reason: only a person may approve plans or change how seatbelt is installed
