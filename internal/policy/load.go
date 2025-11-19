@@ -204,5 +204,6 @@ func (b *builder) settings(s *settingsSchema) error {
 	if set.Unparsed == Allow {
 		return errors.New("settings.unparsed cannot be allow: a command that can't be read can't be trusted")
 	}
+	set.AuditLog = s.AuditLog
 	return nil
 }

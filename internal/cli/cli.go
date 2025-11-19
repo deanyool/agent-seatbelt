@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/deanyool/agent-seatbelt/internal/audit"
 	"github.com/deanyool/agent-seatbelt/internal/policy"
 	"github.com/deanyool/agent-seatbelt/internal/version"
 )
@@ -29,6 +31,7 @@ Usage:
   seatbelt check [--json] [--policy FILE] 'COMMAND'     check a shell command
   seatbelt check [--json] [--policy FILE] -- ARGV...    check an argument list
   seatbelt hook claude-code [--policy FILE]             Claude Code PreToolUse hook
+  seatbelt log [--decision D] [--grep TEXT] [--since D] search the audit log
   seatbelt version
 
 The policy comes from --policy, then $SEATBELT_POLICY, then ./.seatbelt.yaml, then
@@ -42,6 +45,7 @@ type App struct {
 	Stderr  io.Writer
 	Getenv  func(string) string
 	Getwd   func() (string, error)
+	Now     func() time.Time
 	// Color forces terminal colors on or off for output to Stdout.
 	Color bool
 }
@@ -54,6 +58,7 @@ func New() *App {
 		Stderr:     os.Stderr,
 		Getenv:     os.Getenv,
 		Getwd:      os.Getwd,
+		Now:        time.Now,
 		Color:      os.Getenv("NO_COLOR") == "" && isTerminal(os.Stdout),
 	}
 }
@@ -77,6 +82,8 @@ func (a *App) Main(args []string) int {
 		run = a.check
 	case "hook":
 		run = a.hook
+	case "log":
+		run = a.log
 	case "version", "--version", "-V":
 		fmt.Fprintf(a.Stdout, "seatbelt %s\n", version.Version)
 		return exitOK
@@ -153,6 +160,43 @@ func (a *App) cwd() string {
 		return ""
 	}
 	return dir
+}
+
+func (a *App) logger(p *policy.Policy) *audit.Logger {
+	path, err := audit.DefaultPath(p.Settings.AuditLog, a.Getenv)
+	if err != nil {
+		return nil
+	}
+	return &audit.Logger{Path: path}
+}
+
+// record writes an audit entry. Losing the log must not stop the decision from
+// being enforced, so a failure is reported and otherwise ignored.
+func (a *App) record(p *policy.Policy, e audit.Entry) {
+	l := a.logger(p)
+	if l == nil {
+		fmt.Fprintln(a.Stderr, "seatbelt: no audit log location")
+		return
+	}
+	if e.Time.IsZero() {
+		e.Time = a.Now()
+	}
+	if err := l.Write(e); err != nil {
+		fmt.Fprintf(a.Stderr, "seatbelt: audit log: %v\n", err)
+	}
+}
+
+func (a *App) recordReport(p *policy.Policy, source, cwd, session string, r policy.Report) {
+	w := r.Worst()
+	a.record(p, audit.Entry{
+		Source:   source,
+		Command:  r.Input,
+		Decision: r.Decision,
+		Rule:     w.Rule,
+		Reason:   w.Reason,
+		CWD:      cwd,
+		Session:  session,
+	})
 }
 
 func (a *App) colorize(d policy.Decision) string {

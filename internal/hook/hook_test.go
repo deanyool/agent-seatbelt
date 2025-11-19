@@ -119,3 +119,20 @@ func TestReadFailureBlocks(t *testing.T) {
 		t.Errorf("code = %d", r.Code)
 	}
 }
+
+func TestObserveSeesEveryDecision(t *testing.T) {
+	p := defaultPolicy(t)
+	var seen []policy.Decision
+	o := Options{Policy: p, Observe: func(v Verdict) {
+		seen = append(seen, v.Report.Decision)
+		if v.Input.SessionID != "abc123" || v.Input.CWD == "" {
+			t.Errorf("verdict input = %+v", v.Input)
+		}
+	}}
+	for _, c := range []string{"git status", "git push", "rm x"} {
+		Run(strings.NewReader(bashPayload(c)), o)
+	}
+	if len(seen) != 3 || seen[0] != policy.Allow || seen[1] != policy.Confirm || seen[2] != policy.Deny {
+		t.Errorf("seen = %v", seen)
+	}
+}

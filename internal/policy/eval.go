@@ -14,6 +14,7 @@ type Settings struct {
 	Default         Decision
 	UnknownCommands Decision
 	Unparsed        Decision
+	AuditLog        string
 }
 
 // Policy is a compiled policy, ready to evaluate commands.

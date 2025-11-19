@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 )
 
@@ -40,6 +41,7 @@ func newHarness(t *testing.T) *harness {
 		Stderr:  h.err,
 		Getenv:  func(k string) string { return h.env[k] },
 		Getwd:   func() (string, error) { return dir, nil },
+		Now:     func() time.Time { return time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC) },
 	}
 	return h
 }
@@ -153,5 +155,57 @@ func TestPolicySelection(t *testing.T) {
 	}
 	if code := h.run("check", "--policy", filepath.Join(h.dir, "missing.yaml"), "ls"); code != exitFailure {
 		t.Errorf("missing file: %d", code)
+	}
+}
+
+func hookPayload(command string) string {
+	data, _ := json.Marshal(map[string]any{
+		"session_id":      "s1",
+		"cwd":             "/w",
+		"hook_event_name": "PreToolUse",
+		"tool_name":       "Bash",
+		"tool_input":      map[string]any{"command": command},
+	})
+	return string(data)
+}
+
+func TestHookCommand(t *testing.T) {
+	h := newHarness(t)
+	h.app.Stdin = strings.NewReader(hookPayload("rm -rf /"))
+	if code := h.run("hook", "claude-code"); code != 0 {
+		t.Fatalf("code = %d", code)
+	}
+	if !strings.Contains(h.out.String(), `"permissionDecision":"deny"`) {
+		t.Errorf("out = %q", h.out)
+	}
+	lines := h.logLines(t)
+	if len(lines) != 1 || !strings.Contains(lines[0], `"source":"hook"`) || !strings.Contains(lines[0], `"session":"s1"`) {
+		t.Errorf("log = %q", lines)
+	}
+
+	h.app.Stdin = strings.NewReader("garbage")
+	if code := h.run("hook", "claude-code"); code != 2 {
+		t.Errorf("bad payload: %d", code)
+	}
+
+	bad := h.writePolicy(t, "version: 9\n")
+	h.app.Stdin = strings.NewReader(hookPayload("ls"))
+	if code := h.run("hook", "claude-code", "--policy", bad); code != 2 {
+		t.Errorf("a broken policy must block: %d", code)
+	}
+	if code := h.run("hook", "claude-code", "--nope"); code != 2 {
+		t.Errorf("a bad flag must block: %d", code)
+	}
+}
+
+func TestAuditFailureDoesNotChangeTheDecision(t *testing.T) {
+	h := newHarness(t)
+	h.env["SEATBELT_AUDIT_LOG"] = "/dev/null/nope/audit.jsonl"
+	h.app.Stdin = strings.NewReader(hookPayload("rm x"))
+	if code := h.run("hook", "claude-code"); code != 0 {
+		t.Fatalf("code = %d", code)
+	}
+	if !strings.Contains(h.out.String(), `"deny"`) || !strings.Contains(h.err.String(), "audit log") {
+		t.Errorf("out=%q err=%q", h.out, h.err)
 	}
 }

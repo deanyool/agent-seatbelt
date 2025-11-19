@@ -31,6 +31,9 @@ func (a *App) hookRun(args []string) int {
 	}
 	result := hook.Run(a.Stdin, hook.Options{
 		Policy:      p,
+		Observe: func(v hook.Verdict) {
+			a.recordReport(p, "hook", v.Input.CWD, v.Input.SessionID, v.Report)
+		},
 	})
 	fmt.Fprint(a.Stdout, result.Stdout)
 	fmt.Fprint(a.Stderr, result.Stderr)

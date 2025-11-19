@@ -49,9 +49,18 @@ type Result struct {
 	Code   int
 }
 
+// Verdict is one evaluated tool call, handed to the caller for logging.
+type Verdict struct {
+	Input   Input
+	Command string
+	Report  policy.Report
+}
+
 // Options configure the hook.
 type Options struct {
 	Policy *policy.Policy
+	// Observe is called with each verdict, for the audit log.
+	Observe func(Verdict)
 }
 
 // block ends the hook with a refusal that doesn't depend on parsing any JSON.
@@ -78,12 +87,16 @@ func Run(stdin io.Reader, o Options) Result {
 	if in.ToolName == "" {
 		return block("hook payload has no tool_name")
 	}
-	_, rep, handled, err := evaluate(in, o.Policy)
+	command, rep, handled, err := evaluate(in, o.Policy)
 	if err != nil {
 		return block("%v", err)
 	}
 	if !handled {
 		return Result{}
+	}
+	v := Verdict{Input: in, Command: command, Report: rep}
+	if o.Observe != nil {
+		o.Observe(v)
 	}
 	switch rep.Decision {
 	case policy.Allow:
