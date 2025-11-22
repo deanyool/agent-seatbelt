@@ -1,0 +1,90 @@
+name: kubectl
+description: Kubernetes. Reading is free apart from secrets, writes ask first, deletes are refused.
+commands:
+  kubectl:
+    aliases: [oc, kubecolor]
+rules:
+  - id: read
+    command: kubectl
+    subcommand:
+      - get
+      - describe
+      - logs
+      - top
+      - explain
+      - api-resources
+      - api-versions
+      - version
+      - cluster-info
+      - diff
+      - events
+      - wait
+      - auth can-i
+      - auth whoami
+      - rollout status
+      - rollout history
+      - config view
+      - config get-contexts
+      - config get-clusters
+      - config current-context
+      - help
+    decision: allow
+  - id: secrets
+    command: kubectl
+    subcommand: [get, describe]
+    args: ["secret", "secrets", "secret/*", "secrets/*", "secret,*", "*,secret", "*,secrets", "*,secret,*", "*,secrets,*"]
+    decision: confirm
+    reason: this reads a secret
+  - id: raw-config
+    command: kubectl
+    subcommand: [config view]
+    flags: [--raw]
+    decision: confirm
+    reason: this prints credentials
+  - id: write
+    command: kubectl
+    subcommand:
+      - apply
+      - create
+      - patch
+      - edit
+      - label
+      - annotate
+      - scale
+      - autoscale
+      - expose
+      - run
+      - set
+      - rollout restart
+      - rollout pause
+      - rollout resume
+      - rollout undo
+      - cordon
+      - uncordon
+      - taint
+      - exec
+      - attach
+      - cp
+      - port-forward
+      - proxy
+      - debug
+      - config use-context
+      - config set-context
+    decision: confirm
+    reason: this changes the cluster
+  - id: delete
+    command: kubectl
+    subcommand: [delete, drain, "config delete-context", "config delete-cluster", "config delete-user", "config unset"]
+    decision: deny
+    reason: deleting cluster resources is never allowed
+  - id: force
+    command: kubectl
+    subcommand: [replace]
+    decision: deny
+    reason: replace can delete and recreate live resources
+  - id: apply-prune
+    command: kubectl
+    subcommand: [apply]
+    flags: [--prune, --force]
+    decision: deny
+    reason: this can delete resources that aren't in the manifest

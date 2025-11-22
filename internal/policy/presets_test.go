@@ -24,3 +24,36 @@ func expect(t *testing.T, want Decision, commands ...string) {
 		}
 	}
 }
+
+func TestKubectlPreset(t *testing.T) {
+	expect(t, Allow,
+		"kubectl get pods",
+		"kubectl logs pod-1 --tail 100",
+		"kubectl config current-context",
+		"kubectl version",
+		"kubectl auth can-i list pods",
+		"oc get pods",
+	)
+	expect(t, Confirm,
+		"kubectl apply -f x.yaml",
+		"kubectl scale deploy x --replicas=3",
+		"kubectl rollout restart deploy x",
+		"kubectl exec -it pod -- sh",
+		"kubectl get secret x -o yaml",
+		"kubectl get secrets",
+		"kubectl get secret/x",
+		"kubectl describe secret x",
+		"kubectl config view --raw",
+	)
+	expect(t, Deny,
+		"kubectl delete pod x",
+		"kubectl delete ns prod",
+		"kubectl drain node-1",
+		"kubectl replace --force -f x.yaml",
+		"kubectl apply --prune -f x.yaml",
+		"kubectl config delete-context x",
+		"oc delete pod x",
+		"kubecolor delete pod x",
+		"kubectl frobnicate",
+	)
+}

@@ -158,6 +158,19 @@ func TestPolicySelection(t *testing.T) {
 	}
 }
 
+func TestPresetCommands(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("preset", "list"); code != 0 || !strings.Contains(h.out.String(), "kubectl") {
+		t.Errorf("list: %d %q", code, h.out)
+	}
+	if code := h.run("preset", "show", "git"); code != 0 || !strings.Contains(h.out.String(), "force-push") {
+		t.Errorf("show: %d", code)
+	}
+	if code := h.run("preset", "show", "nope"); code != exitFailure {
+		t.Errorf("unknown: %d", code)
+	}
+}
+
 func hookPayload(command string) string {
 	data, _ := json.Marshal(map[string]any{
 		"session_id":      "s1",
