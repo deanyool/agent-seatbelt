@@ -32,6 +32,7 @@ Usage:
   seatbelt check [--json] [--policy FILE] -- ARGV...    check an argument list
   seatbelt hook claude-code [--policy FILE]             Claude Code PreToolUse hook
   seatbelt log [--decision D] [--grep TEXT] [--since D] search the audit log
+  seatbelt preset list|show NAME                        built-in presets
   seatbelt version
 
 The policy comes from --policy, then $SEATBELT_POLICY, then ./.seatbelt.yaml, then
@@ -84,6 +85,8 @@ func (a *App) Main(args []string) int {
 		run = a.hook
 	case "log":
 		run = a.log
+	case "preset":
+		run = a.preset
 	case "version", "--version", "-V":
 		fmt.Fprintf(a.Stdout, "seatbelt %s\n", version.Version)
 		return exitOK
