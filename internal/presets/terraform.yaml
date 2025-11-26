@@ -1,0 +1,72 @@
+name: terraform
+description: Terraform and OpenTofu. Planning is free, applying asks first, destroying is refused.
+commands:
+  terraform:
+    aliases: [tofu]
+    single_dash: true
+rules:
+  - id: read
+    command: terraform
+    subcommand:
+      - plan
+      - show
+      - validate
+      - output
+      - providers
+      - version
+      - graph
+      - state list
+      - state show
+      - state pull
+      - workspace list
+      - workspace show
+      - fmt
+      - help
+    decision: allow
+  - id: version
+    command: terraform
+    flags: [-help, -version]
+    decision: allow
+  - id: fmt-write
+    command: terraform
+    subcommand: [fmt]
+    flags:
+      none: [-check, -diff]
+    decision: confirm
+    reason: terraform fmt rewrites files
+  - id: write
+    command: terraform
+    subcommand:
+      - apply
+      - init
+      - import
+      - refresh
+      - taint
+      - untaint
+      - login
+      - logout
+      - console
+      - workspace new
+      - workspace select
+      - state mv
+      - state push
+      - state replace-provider
+    decision: confirm
+    reason: this changes infrastructure or state
+  - id: destroy
+    command: terraform
+    subcommand: [destroy, "state rm", "workspace delete", force-unlock]
+    decision: deny
+    reason: destroying infrastructure or state is never allowed
+  - id: apply-destroy
+    command: terraform
+    subcommand: [apply]
+    flags: [-destroy]
+    decision: deny
+    reason: apply -destroy is terraform destroy
+  - id: auto-approve
+    command: terraform
+    subcommand: [apply]
+    flags: [-auto-approve]
+    decision: deny
+    reason: -auto-approve removes the review step

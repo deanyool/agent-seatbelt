@@ -57,3 +57,36 @@ func TestKubectlPreset(t *testing.T) {
 		"kubectl frobnicate",
 	)
 }
+
+func TestTerraformPreset(t *testing.T) {
+	expect(t, Allow,
+		"terraform plan",
+		"terraform show",
+		"terraform validate",
+		"terraform output -json",
+		"terraform state list",
+		"terraform fmt -check",
+		"terraform version",
+		"tofu plan",
+	)
+	expect(t, Confirm,
+		"terraform apply",
+		"terraform init",
+		"terraform fmt",
+		"terraform state mv a b",
+		"tofu apply",
+	)
+	expect(t, Deny,
+		"terraform destroy",
+		"terraform destroy -auto-approve",
+		"terraform apply -destroy",
+		"terraform apply --destroy",
+		"terraform apply -auto-approve",
+		"terraform apply --auto-approve",
+		"terraform state rm x",
+		"terraform workspace delete prod",
+		"terraform force-unlock 123",
+		"tofu destroy",
+		"terraform unknown",
+	)
+}
