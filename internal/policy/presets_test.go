@@ -25,6 +25,35 @@ func expect(t *testing.T, want Decision, commands ...string) {
 	}
 }
 
+func TestGhPreset(t *testing.T) {
+	expect(t, Allow,
+		"gh pr list",
+		"gh pr diff 12",
+		"gh repo view",
+		"gh run list",
+		"gh search repos seatbelt",
+		"gh auth status",
+		"gh --version",
+	)
+	expect(t, Confirm,
+		"gh pr merge 12",
+		"gh release create v1",
+		"gh workflow run ci.yml",
+	)
+	expect(t, Deny,
+		"gh repo delete o/r --yes",
+		"gh release delete v1",
+		"gh issue delete 3",
+		"gh gist delete abc",
+		"gh run delete 1",
+		"gh secret delete X",
+		"gh label delete x",
+		"gh auth token",
+		"gh repo archive o/r",
+		"gh something new",
+	)
+}
+
 func TestKubectlPreset(t *testing.T) {
 	expect(t, Allow,
 		"kubectl get pods",

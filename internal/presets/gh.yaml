@@ -1,0 +1,108 @@
+name: gh
+description: GitHub CLI. Reading is free, writes ask first, deletes are refused.
+commands:
+  gh:
+    aliases: [gh.exe]
+rules:
+  - id: read
+    command: gh
+    subcommand:
+      - auth status
+      - status
+      - pr list
+      - pr view
+      - pr diff
+      - pr checks
+      - pr status
+      - issue list
+      - issue view
+      - issue status
+      - repo list
+      - repo view
+      - release list
+      - release view
+      - run list
+      - run view
+      - run watch
+      - workflow list
+      - workflow view
+      - gist list
+      - gist view
+      - label list
+      - cache list
+      - secret list
+      - variable list
+      - ruleset list
+      - ruleset view
+      - search
+      - version
+      - help
+    decision: allow
+  - id: version
+    command: gh
+    flags: [--version, --help]
+    decision: allow
+  - id: write
+    command: gh
+    subcommand:
+      - pr create
+      - pr edit
+      - pr comment
+      - pr review
+      - pr merge
+      - pr close
+      - pr reopen
+      - pr ready
+      - pr checkout
+      - issue create
+      - issue edit
+      - issue comment
+      - issue close
+      - issue reopen
+      - repo create
+      - repo fork
+      - repo clone
+      - repo sync
+      - repo edit
+      - release create
+      - release edit
+      - release upload
+      - release download
+      - workflow run
+      - workflow enable
+      - workflow disable
+      - run rerun
+      - run cancel
+      - gist create
+      - gist edit
+      - label create
+      - label edit
+      - secret set
+      - variable set
+      - auth login
+      - auth logout
+      - auth refresh
+    decision: confirm
+    reason: this changes something on GitHub
+  - id: delete
+    command: gh
+    subcommand: ["* delete", "* delete-asset", "repo archive", "issue transfer", "extension remove"]
+    decision: deny
+    reason: deleting from GitHub is never allowed
+  - id: token
+    command: gh
+    subcommand: [auth token]
+    decision: deny
+    reason: this prints a credential
+  - id: show-token
+    command: gh
+    subcommand: [auth status]
+    flags: [--show-token, -t]
+    decision: deny
+    reason: this prints a credential
+  - id: admin-merge
+    command: gh
+    subcommand: [pr merge]
+    flags: [--admin]
+    decision: deny
+    reason: --admin bypasses branch protection
