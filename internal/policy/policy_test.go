@@ -176,6 +176,7 @@ rules:
 		{"tool l abc", Deny, "seatbelt/default"},
 		{"tool a b --nuke", Deny, "star"},
 		{"anything --nuke", Deny, "star"},
+		{"anything --nuk", Deny, "star"},
 		{"go-ish -yes", Confirm, "single"},
 		{"go-ish --yes", Confirm, "single"},
 		{"go-ish -y", Deny, "seatbelt/default"},

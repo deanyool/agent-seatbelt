@@ -129,6 +129,9 @@ func (a *parsedArgs) has(name string, loose bool) bool {
 		if f.Name == name || f.Raw == name {
 			return true
 		}
+		if loose && len(f.Name) >= 3 && strings.HasPrefix(f.Name, "--") && strings.HasPrefix(name, f.Name) {
+			return true
+		}
 	}
 	return false
 }
