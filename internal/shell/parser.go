@@ -91,7 +91,7 @@ func BaseName(s string) string {
 	if i := strings.LastIndexByte(s, '/'); i >= 0 {
 		s = s[i+1:]
 	}
-	return s
+	return strings.ToLower(s)
 }
 
 // String renders the command roughly as written, for logs and messages.

@@ -278,6 +278,9 @@ func TestAssignments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got := s.Commands[0].Name(); got != "a=1" {
+		t.Errorf("quoted name = %q", got)
+	}
 	s, err = Parse("A\\\n=1 rm")
 	if err != nil {
 		t.Fatal(err)
@@ -328,6 +331,8 @@ func TestCommandName(t *testing.T) {
 		"/usr/bin/git": "git",
 		"./git":        "git",
 		"../x/git":     "git",
+		"GIT":          "git",
+		"/BIN/RM":      "rm",
 		`g\it`:         "git",
 		`"git"`:        "git",
 		`g'i't`:        "git",
