@@ -91,6 +91,7 @@ func BaseName(s string) string {
 	if i := strings.LastIndexByte(s, '/'); i >= 0 {
 		s = s[i+1:]
 	}
+	s = strings.TrimSuffix(s, ".exe")
 	return strings.ToLower(s)
 }
 
