@@ -1,5 +1,11 @@
 name: git
 description: Reading is free. Local writes and pushes ask first. History rewrites and deletions are refused.
+commands:
+  git:
+    global_flags:
+      value: [-C, -c, --git-dir, --work-tree, --namespace, --super-prefix, --config-env]
+      bool: [--no-pager, --paginate, -p, -P, --no-replace-objects, --bare, --literal-pathspecs, --glob-pathspecs, --noglob-pathspecs, --icase-pathspecs, --no-optional-locks, --version, --help]
+    value_flags: [-m, --message, --author, --format, --pretty, --since, --until, --date]
 rules:
   - id: read
     command: git

@@ -57,6 +57,9 @@ func TestGhPreset(t *testing.T) {
 func TestKubectlPreset(t *testing.T) {
 	expect(t, Allow,
 		"kubectl get pods",
+		"kubectl get pods -n kube-system -o yaml",
+		"kubectl --context prod get pods",
+		"kubectl -n prod describe pod x",
 		"kubectl logs pod-1 --tail 100",
 		"kubectl config current-context",
 		"kubectl version",
@@ -65,6 +68,7 @@ func TestKubectlPreset(t *testing.T) {
 	)
 	expect(t, Confirm,
 		"kubectl apply -f x.yaml",
+		"kubectl -n prod apply -f x.yaml",
 		"kubectl scale deploy x --replicas=3",
 		"kubectl rollout restart deploy x",
 		"kubectl exec -it pod -- sh",
@@ -77,6 +81,9 @@ func TestKubectlPreset(t *testing.T) {
 	expect(t, Deny,
 		"kubectl delete pod x",
 		"kubectl delete ns prod",
+		"kubectl --context prod delete pod x",
+		"kubectl -n prod delete pod x",
+		"kubectl --namespace=prod delete pod x",
 		"kubectl drain node-1",
 		"kubectl replace --force -f x.yaml",
 		"kubectl apply --prune -f x.yaml",
@@ -84,29 +91,35 @@ func TestKubectlPreset(t *testing.T) {
 		"oc delete pod x",
 		"kubecolor delete pod x",
 		"kubectl frobnicate",
+		"kubectl --unknown-flag get pods",
 	)
 }
 
 func TestTerraformPreset(t *testing.T) {
 	expect(t, Allow,
 		"terraform plan",
+		"terraform plan -var-file=prod.tfvars",
 		"terraform show",
 		"terraform validate",
 		"terraform output -json",
 		"terraform state list",
+		"terraform -chdir=infra plan",
 		"terraform fmt -check",
 		"terraform version",
 		"tofu plan",
 	)
 	expect(t, Confirm,
 		"terraform apply",
+		"terraform apply plan.out",
 		"terraform init",
+		"terraform -chdir=infra apply",
 		"terraform fmt",
 		"terraform state mv a b",
 		"tofu apply",
 	)
 	expect(t, Deny,
 		"terraform destroy",
+		"terraform -chdir=infra destroy",
 		"terraform destroy -auto-approve",
 		"terraform apply -destroy",
 		"terraform apply --destroy",

@@ -3,6 +3,9 @@ description: GitHub CLI. Reading is free, writes ask first, deletes are refused.
 commands:
   gh:
     aliases: [gh.exe]
+    global_flags:
+      bool: [--help, --version]
+    value_flags: [-R, --repo, --json, -q, --jq, -t, --template, --title, -L, --limit, -s, --state, -b, --body, -F, --body-file, -X, --method, -H, --header, -f, --field, --raw-field, -B, --base, --hostname, --input]
 rules:
   - id: read
     command: gh

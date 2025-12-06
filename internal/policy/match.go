@@ -87,6 +87,17 @@ func matchPath(path []pathStep, a *parsedArgs, strict bool) ([]positional, bool)
 		}
 		i++
 	}
+	if !strict && i > 0 {
+		// Trust the path only if every flag in front of it is declared. An
+		// undeclared flag might take a value, and then the words that matched
+		// aren't the subcommand at all.
+		last := a.Pos[i-1].Index
+		for _, f := range a.Flags {
+			if f.Index < last && !f.Known {
+				return nil, false
+			}
+		}
+	}
 	return a.Pos[i:], true
 }
 

@@ -3,6 +3,9 @@ description: Kubernetes. Reading is free apart from secrets, writes ask first, d
 commands:
   kubectl:
     aliases: [oc, kubecolor]
+    global_flags:
+      bool: [--insecure-skip-tls-verify, --warnings-as-errors, --match-server-version, --help, -h]
+    value_flags: [-n, --namespace, --context, --cluster, --user, --kubeconfig, -s, --server, --token, --as, --as-group, --as-uid, --request-timeout, --cache-dir, --certificate-authority, --client-certificate, --client-key, --tls-server-name, -v, --v, --vmodule, -o, --output, -l, --selector, --field-selector, -f, --filename, --sort-by, -c, --container, --since, --tail, --template]
 rules:
   - id: read
     command: kubectl

@@ -4,6 +4,10 @@ commands:
   terraform:
     aliases: [tofu]
     single_dash: true
+    global_flags:
+      value: [-chdir]
+      bool: [-help, -version]
+    value_flags: [-var, -var-file, -target, -out, -state, -state-out, -lock-timeout, -parallelism, -backend-config, -replace]
 rules:
   - id: read
     command: terraform
