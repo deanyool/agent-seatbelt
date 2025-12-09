@@ -35,8 +35,11 @@ func parseArgs(words []shell.Word, spec *CommandSpec) *parsedArgs {
 		spec = &CommandSpec{}
 	}
 	a := &parsedArgs{}
+	// Global flags only mean what they say ahead of the subcommand. After it, -c on
+	// git grep is a different flag from the -c on git itself.
 	takesValue := func(name string) bool {
-		return slices.Contains(spec.ValueFlags, name) || slices.Contains(spec.Global.Value, name)
+		return slices.Contains(spec.ValueFlags, name) ||
+			(len(a.Pos) == 0 && slices.Contains(spec.Global.Value, name))
 	}
 	known := func(name string) bool {
 		return slices.Contains(spec.ValueFlags, name) ||
