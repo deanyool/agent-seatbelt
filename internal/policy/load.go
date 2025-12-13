@@ -165,6 +165,11 @@ func (b *builder) compileRule(r *Rule) error {
 			return err
 		}
 	}
+	for _, m := range r.FlagValues {
+		if err := m.compile(); err != nil {
+			return err
+		}
+	}
 	for _, name := range r.Command {
 		if name == "*" {
 			b.policy.anyRules = append(b.policy.anyRules, r)

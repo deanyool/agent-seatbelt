@@ -125,6 +125,27 @@ func (a *ArgMatch) compile() error {
 	return err
 }
 
+// FlagValueMatch constrains the values given to a set of flags.
+type FlagValueMatch struct {
+	Flags []string `yaml:"flags"`
+	Any   []string `yaml:"any"`
+	None  []string `yaml:"none"`
+
+	anyP, noneP []pattern
+}
+
+func (m *FlagValueMatch) compile() error {
+	if len(m.Flags) == 0 {
+		return fmt.Errorf("flag_values entry needs flags")
+	}
+	var err error
+	if m.anyP, err = compilePatterns(m.Any); err != nil {
+		return err
+	}
+	m.noneP, err = compilePatterns(m.None)
+	return err
+}
+
 // Rule is one line of a policy. Every condition present must hold.
 type Rule struct {
 	ID         string            `yaml:"id"`
@@ -132,6 +153,7 @@ type Rule struct {
 	Subcommand stringList        `yaml:"subcommand"`
 	Flags      *FlagMatch        `yaml:"flags"`
 	Args       *ArgMatch         `yaml:"args"`
+	FlagValues []*FlagValueMatch `yaml:"flag_values"`
 	Decision   *Decision         `yaml:"decision"`
 	Reason     string            `yaml:"reason"`
 

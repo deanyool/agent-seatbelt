@@ -60,6 +60,11 @@ func (r *Rule) matches(a *parsedArgs) bool {
 	if r.Args != nil && !matchArgs(r.Args, rest, strict) {
 		return false
 	}
+	for _, m := range r.FlagValues {
+		if !m.matches(a, strict) {
+			return false
+		}
+	}
 	return true
 }
 
@@ -155,4 +160,12 @@ func anyWordMatches(patterns []pattern, words []shell.Word, strict bool) bool {
 		}
 	}
 	return false
+}
+
+func (m *FlagValueMatch) matches(a *parsedArgs, strict bool) bool {
+	values := a.valuesOf(m.Flags, strict)
+	if len(m.anyP) > 0 && !anyWordMatches(m.anyP, values, strict) {
+		return false
+	}
+	return len(m.noneP) == 0 || !anyWordMatches(m.noneP, values, !strict)
 }

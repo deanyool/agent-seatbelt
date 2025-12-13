@@ -45,6 +45,37 @@ rules:
     command: gh
     flags: [--version, --help]
     decision: allow
+  - id: api-read
+    command: gh
+    subcommand: [api]
+    flags:
+      none: [-f, -F, --field, --raw-field, --input]
+    flag_values:
+      - flags: [-X, --method]
+        none: ["re:(?i)^(post|put|patch|delete)$"]
+    decision: allow
+  - id: api-write-fields
+    command: gh
+    subcommand: [api]
+    flags: [-f, -F, --field, --raw-field, --input]
+    decision: confirm
+    reason: sending fields turns this API call into a write
+  - id: api-write-method
+    command: gh
+    subcommand: [api]
+    flag_values:
+      - flags: [-X, --method]
+        any: ["re:(?i)^(post|put|patch)$"]
+    decision: confirm
+    reason: this API call changes data
+  - id: api-delete
+    command: gh
+    subcommand: [api]
+    flag_values:
+      - flags: [-X, --method]
+        any: ["re:(?i)^delete$"]
+    decision: deny
+    reason: DELETE calls are never allowed
   - id: write
     command: gh
     subcommand:

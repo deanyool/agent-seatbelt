@@ -138,3 +138,20 @@ func (a *parsedArgs) has(name string, loose bool) bool {
 	}
 	return false
 }
+
+// valuesOf returns the values given to any of the named flags.
+func (a *parsedArgs) valuesOf(names []string, loose bool) []shell.Word {
+	var out []shell.Word
+	for _, f := range a.Flags {
+		if !f.Has {
+			continue
+		}
+		for _, n := range names {
+			if f.Name == n || (loose && len(f.Name) >= 3 && strings.HasPrefix(f.Name, "--") && strings.HasPrefix(n, f.Name)) {
+				out = append(out, f.Value)
+				break
+			}
+		}
+	}
+	return out
+}

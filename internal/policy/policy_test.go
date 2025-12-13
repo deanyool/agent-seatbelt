@@ -41,6 +41,7 @@ func TestParseRejects(t *testing.T) {
 		{"unknown preset", "version: 1\npresets: [nope]", "unknown preset"},
 		{"unknown disable", "version: 1\ndisable: [nope]", "no rule named"},
 		{"unparsed allow", "version: 1\nsettings: {unparsed: allow}", "cannot be allow"},
+		{"flag values without flags", "version: 1\nrules:\n- {id: a, command: x, flag_values: [{any: [x]}], decision: deny}", "needs flags"},
 		{"bad scalar", "version: 1\nrules:\n- {id: a, command: {x: y}, decision: deny}", "expected a string"},
 	}
 	for _, tt := range tests {
@@ -141,6 +142,8 @@ rules:
   - {id: argall, command: tool, subcommand: j, args: {all: [p, q]}, decision: confirm}
   - {id: argnone, command: tool, subcommand: k, args: {none: [p]}, decision: allow}
   - {id: re, command: tool, subcommand: l, args: ['re:^[0-9]+$'], decision: allow}
+  - {id: value, command: tool, subcommand: m, flag_values: [{flags: [--out, -o], any: ["*.txt"]}], decision: allow}
+  - {id: valuenone, command: tool, subcommand: n, flag_values: [{flags: [--out], none: ["/etc/*"]}], decision: allow}
   - {id: star, command: "*", flags: [--nuke], decision: deny, reason: no}
   - {id: single, command: go-ish, flags: [-yes], decision: confirm}
   - {id: single-sub, command: go-ish, subcommand: run, decision: allow}
@@ -183,6 +186,15 @@ rules:
 		{"tool k p", Deny, "seatbelt/default"},
 		{"tool l 123", Allow, "re"},
 		{"tool l abc", Deny, "seatbelt/default"},
+		{"tool m --out a.txt", Allow, "value"},
+		{"tool m --out=a.txt", Allow, "value"},
+		{"tool m -oa.txt", Allow, "value"},
+		{"tool m -o a.txt", Allow, "value"},
+		{"tool m --out a.bin", Deny, "seatbelt/default"},
+		{"tool m", Deny, "seatbelt/default"},
+		{"tool n", Allow, "valuenone"},
+		{"tool n --out /tmp/x", Allow, "valuenone"},
+		{"tool n --out /etc/x", Deny, "seatbelt/default"},
 		{"tool a b --nuke", Deny, "star"},
 		{"anything --nuke", Deny, "star"},
 		{"anything --nuk", Deny, "star"},
@@ -299,5 +311,8 @@ func TestParseArgsCluster(t *testing.T) {
 	}
 	if len(a.Pos) != 1 || a.Pos[0].Word.Value != "pos" {
 		t.Errorf("pos = %+v", a.Pos)
+	}
+	if got := a.valuesOf([]string{"-o"}, false); len(got) != 1 || got[0].Value != "val" {
+		t.Errorf("values = %+v", got)
 	}
 }

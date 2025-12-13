@@ -121,6 +121,33 @@ rules:
     decision: confirm
     reason: this creates a branch or tag
 
+  - id: config-override
+    command: git
+    flag_values:
+      - flags: [-c]
+        any: ["*"]
+        none: ["color.*", "user.name=*", "user.email=*", "core.quotepath=*", "core.pager=cat", "advice.*", "log.*"]
+    decision: deny
+    reason: git -c can run arbitrary programs through aliases and hooks
+  - id: run-program
+    command: git
+    flag_values:
+      - flags: [--exec-path, --upload-pack, --receive-pack, --config-env]
+        any: ["*"]
+    decision: deny
+    reason: this flag points git at another program
+  - id: upload-pack
+    command: git
+    subcommand: [fetch, pull, clone, ls-remote, push]
+    flags: [--upload-pack, --receive-pack, --exec]
+    decision: deny
+    reason: this flag points git at another program
+  - id: clone-upload-pack
+    command: git
+    subcommand: [clone]
+    flags: [-u]
+    decision: deny
+    reason: this flag points git at another program
   - id: writes-file
     command: git
     flags: [--output, --ext-diff, --open-files-in-pager]
