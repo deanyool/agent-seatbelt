@@ -1,0 +1,49 @@
+name: psql
+description: PostgreSQL client. SELECTs run, data changes ask first, destructive statements are refused.
+commands:
+  psql:
+    value_flags: [-c, --command, -d, --dbname, -f, --file, -h, --host, -p, --port, -U, --username, -o, --output, -L, --log-file, -v, --set, --variable, -F, --field-separator, -P, --pset, -R, --record-separator, -T, --table-attr]
+rules:
+  - id: read
+    command: psql
+    flag_values:
+      - flags: [-c, --command]
+        any: ['re:(?is)^\s*(select|show|explain|with|table|values)\b', 're:^\s*\\(d[a-zA-Z+]*|l\+?|conninfo)(\s|$)']
+    decision: allow
+  - id: info
+    command: psql
+    flags: [-l, --list, -V, --version, "-?", --help]
+    decision: allow
+  - id: write
+    command: psql
+    flag_values:
+      - flags: [-c, --command]
+        any: ['re:(?i)\b(insert|update|merge|alter|create|grant|revoke|reindex|vacuum|cluster|refresh|copy|call|do|lock|comment|security|set|reset|import|begin|commit)\b']
+    decision: confirm
+    reason: this statement changes data or schema
+  - id: script
+    command: psql
+    flags: [-f, --file, -o, --output, -L, --log-file]
+    decision: confirm
+    reason: a script file or output file can't be inspected
+  - id: destructive
+    command: psql
+    flag_values:
+      - flags: [-c, --command]
+        any: ['re:(?i)\b(drop|truncate|delete)\b']
+    decision: deny
+    reason: DROP, TRUNCATE and DELETE are never allowed
+  - id: server-side-escape
+    command: psql
+    flag_values:
+      - flags: [-c, --command]
+        any: ['re:(?i)\b(pg_terminate_backend|pg_cancel_backend|pg_read_file|pg_read_binary_file|pg_ls_dir|lo_import|lo_export|lo_unlink|dblink\w*)\b', 're:(?is)\bcopy\b.*\bprogram\b']
+    decision: deny
+    reason: this reaches outside the database or kills sessions
+  - id: meta-escape
+    command: psql
+    flag_values:
+      - flags: [-c, --command]
+        any: ['re:\\(!|copy\b|o\b|i\b|ir\b|w\b|e\b|ef\b|ev\b|gexec\b|g\b|s\b)']
+    decision: deny
+    reason: this psql meta-command runs a program or touches files

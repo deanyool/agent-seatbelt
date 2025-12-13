@@ -252,3 +252,44 @@ func TestTerraformPreset(t *testing.T) {
 		"terraform unknown",
 	)
 }
+
+func TestPsqlPreset(t *testing.T) {
+	expect(t, Allow,
+		`psql -c "select 1"`,
+		`psql -h db -U app -d main -c "SELECT * FROM users LIMIT 5"`,
+		`psql --command="show server_version"`,
+		`psql -c "explain select 1"`,
+		`psql -c '\dt'`,
+		`psql -c '\d users'`,
+		"psql -l",
+		"psql --version",
+	)
+	expect(t, Confirm,
+		`psql -c "insert into t values (1)"`,
+		`psql -c "update t set a = 1"`,
+		`psql -c "alter table t add b int"`,
+		`psql -c "create table t (a int)"`,
+		"psql -f migrate.sql",
+		"psql -d main -f migrate.sql",
+	)
+	expect(t, Deny,
+		`psql -c "drop table t"`,
+		`psql -c "DROP TABLE t"`,
+		`psql -c "delete from t"`,
+		`psql -c "truncate t"`,
+		`psql -c "select 1; drop table t"`,
+		`psql -c "with x as (delete from t returning *) select * from x"`,
+		`psql -c "select 1" -c "drop table t"`,
+		`psql --command="drop table t"`,
+		`psql "--command=drop table t"`,
+		`psql -c '\! rm -rf /'`,
+		`psql -c '\copy t to x'`,
+		`psql -c '\o /tmp/x'`,
+		`psql -c "copy t to program 'rm -rf /'"`,
+		`psql -c "select pg_terminate_backend(1)"`,
+		"psql main",
+		"psql < drop.sql",
+		"psql <<EOF\ndrop table t;\nEOF",
+		"echo 'drop table t' | psql",
+	)
+}
