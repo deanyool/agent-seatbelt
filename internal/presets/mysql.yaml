@@ -1,0 +1,47 @@
+name: mysql
+description: MySQL and MariaDB clients. SELECTs run, data changes ask first, destructive statements are refused.
+commands:
+  mysql:
+    aliases: [mariadb]
+    value_flags: [-e, --execute, -h, --host, -u, --user, -P, --port, -D, --database, -S, --socket, --defaults-file, --defaults-extra-file, -p, --password]
+rules:
+  - id: read
+    command: mysql
+    flag_values:
+      - flags: [-e, --execute]
+        any: ['re:(?is)^\s*(select|show|describe|desc|explain)\b']
+    decision: allow
+  - id: info
+    command: mysql
+    flags: [-V, --version, "-?", --help]
+    decision: allow
+  - id: write
+    command: mysql
+    flag_values:
+      - flags: [-e, --execute]
+        any: ['re:(?i)\b(insert|update|replace|merge|alter|create|grant|revoke|rename|call|lock|set|start|commit|load)\b']
+    decision: confirm
+    reason: this statement changes data or schema
+  - id: destructive
+    command: mysql
+    flag_values:
+      - flags: [-e, --execute]
+        any: ['re:(?i)\b(drop|truncate|delete)\b']
+    decision: deny
+    reason: DROP, TRUNCATE and DELETE are never allowed
+  - id: file-access
+    command: mysql
+    flag_values:
+      - flags: [-e, --execute]
+        any: ['re:(?i)\b(into\s+(out|dump)file|load_file|load\s+data)\b', 're:(?im)^\s*(system|source|\\!|\\\.)', 're:(?i);\s*(system|source)\b']
+    decision: deny
+    reason: this reads or writes files on the server or runs a program
+  - id: admin-read
+    command: mysqladmin
+    subcommand: [status, ping, version, processlist, variables]
+    decision: allow
+  - id: admin-destructive
+    command: mysqladmin
+    subcommand: [drop, shutdown, kill, password]
+    decision: deny
+    reason: this destroys data or stops the server

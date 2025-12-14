@@ -293,3 +293,33 @@ func TestPsqlPreset(t *testing.T) {
 		"echo 'drop table t' | psql",
 	)
 }
+
+func TestMysqlPreset(t *testing.T) {
+	expect(t, Allow,
+		`mysql -e "select 1"`,
+		`mysql -h db -u app -e "SHOW TABLES"`,
+		`mysql --execute="describe users"`,
+		`mariadb -e "select 1"`,
+		"mysql --version",
+		"mysqladmin status",
+	)
+	expect(t, Confirm,
+		`mysql -e "insert into t values (1)"`,
+		`mysql -e "update t set a = 1"`,
+		`mysql -e "alter table t add b int"`,
+	)
+	expect(t, Deny,
+		`mysql -e "drop table t"`,
+		`mysql -e "DELETE FROM t"`,
+		`mysql -e "truncate t"`,
+		`mysql -e "select 1; drop database d"`,
+		`mysql -e "select * from t into outfile '/tmp/x'"`,
+		`mysql -e "select load_file('/etc/passwd')"`,
+		`mysql -e "system rm -rf /"`,
+		`mysql -e "source x.sql"`,
+		"mysql main",
+		"mysql < drop.sql",
+		"mysqladmin drop main",
+		"mysqladmin shutdown",
+	)
+}
