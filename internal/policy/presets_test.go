@@ -127,6 +127,10 @@ func TestGitPreset(t *testing.T) {
 		"git frobnicate",
 		"git config core.sshCommand evil",
 		"git --unknown-flag log",
+		"GIT_SSH_COMMAND='rm -rf /' git fetch",
+		"PAGER='rm -rf /' git log",
+		"GIT_EXTERNAL_DIFF=/tmp/evil git diff",
+		"GIT_CONFIG_KEY_0=core.sshCommand git fetch",
 	)
 }
 
@@ -321,5 +325,23 @@ func TestMysqlPreset(t *testing.T) {
 		"mysql < drop.sql",
 		"mysqladmin drop main",
 		"mysqladmin shutdown",
+	)
+}
+
+func TestDangerousEnv(t *testing.T) {
+	expect(t, Allow, "FOO=1 ls", "export FOO=1", "NODE_ENV=test npm test")
+	expect(t, Deny,
+		"PATH=/tmp/evil ls",
+		"LD_PRELOAD=/tmp/x.so ls",
+		"DYLD_INSERT_LIBRARIES=/tmp/x ls",
+		"export PATH=/tmp/evil",
+		"export GIT_SSH_COMMAND=evil; git fetch",
+		"declare -x LD_PRELOAD=/tmp/x.so",
+		"BASH_ENV=/tmp/x bash run.sh",
+		"NODE_OPTIONS='--require /tmp/x' node a.js",
+		"env PATH=/tmp/evil ls",
+		"sudo PATH=/tmp/evil ls",
+		"env GIT_SSH_COMMAND=evil git fetch",
+		"bash -c 'PATH=/tmp/evil ls'",
 	)
 }

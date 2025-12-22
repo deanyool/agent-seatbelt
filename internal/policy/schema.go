@@ -23,6 +23,7 @@ type settingsSchema struct {
 	UnknownCommands *Decision `yaml:"unknown_commands"`
 	Unparsed        *Decision `yaml:"unparsed"`
 	AuditLog        string    `yaml:"audit_log"`
+	DangerousEnv    []string  `yaml:"dangerous_env"`
 }
 
 // CommandSpec teaches the matcher how a program reads its command line.

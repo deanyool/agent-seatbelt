@@ -1,0 +1,18 @@
+package policy
+
+// defaultDangerousEnv lists variables that change what a program executes, so a
+// rule that allowed the program would no longer describe what happens.
+func defaultDangerousEnv() []string {
+	return []string{
+		"PATH", "IFS", "ENV", "BASH_ENV", "ZDOTDIR", "PROMPT_COMMAND", "PS4", "SHELLOPTS", "BASHOPTS",
+		"LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT",
+		"DYLD_INSERT_LIBRARIES", "DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH",
+		"GIT_SSH", "GIT_SSH_COMMAND", "GIT_EXTERNAL_DIFF", "GIT_PAGER", "GIT_EDITOR", "GIT_ASKPASS",
+		"GIT_SEQUENCE_EDITOR", "GIT_EXEC_PATH", "GIT_PROXY_COMMAND", "GIT_TEMPLATE_DIR", "GIT_CONFIG",
+		"GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT",
+		"PAGER", "MANPAGER", "EDITOR", "VISUAL", "LESSOPEN", "LESSCLOSE", "PSQLRC", "PSQL_EDITOR", "PSQL_PAGER",
+		"PYTHONPATH", "PYTHONSTARTUP", "PYTHONHOME", "NODE_OPTIONS", "NODE_PATH",
+		"RUBYOPT", "RUBYLIB", "PERL5OPT", "PERL5LIB", "PERL5DB",
+		"SEATBELT_POLICY", "SEATBELT_AUDIT_LOG",
+	}
+}

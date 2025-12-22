@@ -29,6 +29,7 @@ type Policy struct {
 	aliases      map[string]string
 	rules        map[string][]*Rule
 	anyRules     []*Rule
+	dangerousEnv []string
 }
 
 // Options carry the context of one evaluation.
@@ -137,9 +138,12 @@ var opaquePrograms = []string{
 	"source", ".", "trap", "alias", "enable", "hash", "bind", "repeat", "foreach", "autoload", "zmodload",
 }
 
+// declaringBuiltins take NAME=value arguments.
+var declaringBuiltins = []string{"export", "declare", "typeset", "readonly", "local"}
 
 
 func (p *Policy) evalCommand(rep *Report, c shell.Command, o Options) {
+	p.checkEnv(rep, c)
 	if len(c.Args) == 0 {
 		return
 	}
@@ -152,6 +156,9 @@ func (p *Policy) evalCommand(rep *Report, c shell.Command, o Options) {
 			Reason:   name + " runs code or redefines commands in a way that can't be inspected",
 		})
 		return
+	}
+	if slices.Contains(declaringBuiltins, name) {
+		p.checkDeclared(rep, c)
 	}
 	if f := p.evalRules(c, name); f != nil {
 		rep.add(*f)
@@ -238,4 +245,37 @@ func strongest(hit []*Rule) *Rule {
 		return user
 	}
 	return preset
+}
+
+func (p *Policy) dangerousName(name string) bool {
+	if slices.Contains(p.dangerousEnv, name) {
+		return true
+	}
+	return strings.HasPrefix(name, "GIT_CONFIG_KEY_") || strings.HasPrefix(name, "GIT_CONFIG_VALUE_") || strings.HasPrefix(name, "BASH_FUNC_")
+}
+
+func (p *Policy) checkEnv(rep *Report, c shell.Command) {
+	for _, a := range c.Assigns {
+		if p.dangerousName(a.Name) {
+			rep.add(p.envFinding(c, a.Name))
+		}
+	}
+}
+
+func (p *Policy) checkDeclared(rep *Report, c shell.Command) {
+	for _, w := range c.Args[1:] {
+		name, _, found := strings.Cut(w.Value, "=")
+		if found && p.dangerousName(strings.TrimSuffix(name, "+")) {
+			rep.add(p.envFinding(c, name))
+		}
+	}
+}
+
+func (p *Policy) envFinding(c shell.Command, name string) Finding {
+	return Finding{
+		Command:  c.String(),
+		Decision: Deny,
+		Rule:     "seatbelt/env",
+		Reason:   "setting " + name + " can change what a command really runs",
+	}
 }

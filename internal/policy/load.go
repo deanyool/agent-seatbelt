@@ -210,5 +210,6 @@ func (b *builder) settings(s *settingsSchema) error {
 		return errors.New("settings.unparsed cannot be allow: a command that can't be read can't be trusted")
 	}
 	set.AuditLog = s.AuditLog
+	b.policy.dangerousEnv = append(defaultDangerousEnv(), s.DangerousEnv...)
 	return nil
 }
