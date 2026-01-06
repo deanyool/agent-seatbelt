@@ -184,6 +184,7 @@ rules:
 		{"tool j p", Deny, "seatbelt/default"},
 		{"tool k q", Allow, "argnone"},
 		{"tool k p", Deny, "seatbelt/default"},
+		{`tool k "$X"`, Deny, "seatbelt/default"},
 		{"tool l 123", Allow, "re"},
 		{"tool l abc", Deny, "seatbelt/default"},
 		{"tool m --out a.txt", Allow, "value"},
@@ -192,9 +193,11 @@ rules:
 		{"tool m -o a.txt", Allow, "value"},
 		{"tool m --out a.bin", Deny, "seatbelt/default"},
 		{"tool m", Deny, "seatbelt/default"},
+		{`tool m --out "$X"`, Deny, "seatbelt/default"},
 		{"tool n", Allow, "valuenone"},
 		{"tool n --out /tmp/x", Allow, "valuenone"},
 		{"tool n --out /etc/x", Deny, "seatbelt/default"},
+		{`tool n --out "$X"`, Deny, "seatbelt/default"},
 		{"tool a b --nuke", Deny, "star"},
 		{"anything --nuke", Deny, "star"},
 		{"anything --nuk", Deny, "star"},
@@ -209,6 +212,45 @@ rules:
 			rep := p.Evaluate(tt.cmd, Options{})
 			if rep.Decision != tt.want || rep.Worst().Rule != tt.rule {
 				t.Errorf("got %s by %s, want %s by %s", rep.Decision, rep.Worst().Rule, tt.want, tt.rule)
+			}
+		})
+	}
+}
+
+func TestDynamicArguments(t *testing.T) {
+	p := mustParse(t, `version: 1
+commands:
+  tool:
+    value_flags: [-m]
+rules:
+  - {id: read, command: tool, subcommand: read, decision: allow}
+`)
+	tests := []struct {
+		cmd  string
+		want Decision
+	}{
+		{"tool read a", Allow},
+		{"tool read *.go", Allow},
+		{"tool read $X", Deny},
+		{`tool read "$X"`, Deny},
+		{`tool read "-$X"`, Deny},
+		{`tool read "a$X"`, Allow},
+		{"tool read a$X", Deny},
+		{"tool read {a,b}", Deny},
+		{`tool read -m "$X"`, Allow},
+		{`tool read -m $X`, Allow},
+		{`tool read -- "$X"`, Allow},
+		{`tool read -- $X`, Deny},
+		{`tool read --flag="$X"`, Allow},
+		{`tool read "$(date)"`, Deny},
+		{`tool $X`, Deny},
+		{`tool "$X"`, Deny},
+	}
+	for _, tt := range tests {
+		t.Run(tt.cmd, func(t *testing.T) {
+			rep := p.Evaluate(tt.cmd, Options{})
+			if rep.Decision != tt.want {
+				t.Errorf("got %s, want %s: %s", rep.Decision, tt.want, rep.Reason())
 			}
 		})
 	}

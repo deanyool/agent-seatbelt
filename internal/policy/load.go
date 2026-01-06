@@ -104,6 +104,7 @@ func newBuilder() *builder {
 				Default:         Deny,
 				UnknownCommands: Allow,
 				Unparsed:        Deny,
+				Dynamic:         Deny,
 			},
 			specs:   map[string]*CommandSpec{},
 			aliases: map[string]string{},
@@ -206,6 +207,7 @@ func (b *builder) settings(s *settingsSchema) error {
 	assign(&set.Default, s.Default)
 	assign(&set.UnknownCommands, s.UnknownCommands)
 	assign(&set.Unparsed, s.Unparsed)
+	assign(&set.Dynamic, s.Dynamic)
 	if set.Unparsed == Allow {
 		return errors.New("settings.unparsed cannot be allow: a command that can't be read can't be trusted")
 	}

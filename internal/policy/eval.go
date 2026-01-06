@@ -2,6 +2,7 @@
 package policy
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -14,6 +15,7 @@ type Settings struct {
 	Default         Decision
 	UnknownCommands Decision
 	Unparsed        Decision
+	Dynamic         Decision
 	AuditLog        string
 }
 
@@ -180,6 +182,14 @@ func (p *Policy) evalRules(c shell.Command, name string) *Finding {
 	args := parseArgs(c.Args[1:], spec)
 	display := c.String()
 
+	if governed && !c.Wrapper && len(args.Pos) > 0 && args.Pos[0].Word.Dynamic {
+		return &Finding{
+			Command:  display,
+			Decision: p.Settings.Dynamic,
+			Rule:     "seatbelt/dynamic",
+			Reason:   "the subcommand of " + name + " is only known at run time",
+		}
+	}
 
 	var hit []*Rule
 	for _, r := range own {
@@ -196,6 +206,16 @@ func (p *Policy) evalRules(c shell.Command, name string) *Finding {
 		f := &Finding{Command: display, Decision: *best.Decision, Rule: best.ID, Reason: best.Reason}
 		if f.Reason == "" {
 			f.Reason = "matched rule " + best.ID
+		}
+		// An allow is a claim about the whole command line. If an expansion could
+		// add a flag or an argument, the rule hasn't really seen the command.
+		if f.Decision == Allow && governed && len(args.Risky) > 0 {
+			return &Finding{
+				Command:  display,
+				Decision: p.Settings.Dynamic,
+				Rule:     "seatbelt/dynamic",
+				Reason:   fmt.Sprintf("%s could expand to a flag or extra arguments at run time", args.Risky[0].Raw),
+			}
 		}
 		return f
 	}

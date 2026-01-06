@@ -27,6 +27,8 @@ type positional struct {
 type parsedArgs struct {
 	Flags []flagUse
 	Pos   []positional
+	// Risky holds words whose expansion could turn into a flag or an extra argument.
+	Risky []shell.Word
 }
 
 // parseArgs splits the words after the program name.
@@ -122,6 +124,16 @@ func normalizeFlag(name string, spec *CommandSpec) string {
 
 func (a *parsedArgs) addPositional(w shell.Word, i int, afterDashes bool) {
 	a.Pos = append(a.Pos, positional{Word: w, Index: i})
+	// After -- nothing can be a flag, but an unquoted expansion can still add words.
+	if w.Split || (w.Dynamic && !afterDashes && !hasSafePrefix(w)) {
+		a.Risky = append(a.Risky, w)
+	}
+}
+
+// hasSafePrefix reports a word whose literal start keeps it from being a flag.
+func hasSafePrefix(w shell.Word) bool {
+	p := w.Prefix()
+	return p != "" && !strings.HasPrefix(p, "-")
 }
 
 // has reports whether a flag is present. With loose set it also accepts an
