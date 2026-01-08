@@ -289,6 +289,29 @@ func TestUnparsedReports(t *testing.T) {
 	}
 }
 
+func TestEvaluateArgv(t *testing.T) {
+	p := loadDefault(t)
+	tests := []struct {
+		argv []string
+		want Decision
+	}{
+		{[]string{"git", "status"}, Allow},
+		{[]string{"git", "push", "--force"}, Deny},
+		{[]string{"/usr/bin/git", "push"}, Confirm},
+		{[]string{"rm", "x"}, Deny},
+		{[]string{"sudo", "rm", "x"}, Deny},
+		{[]string{"bash", "-c", "rm x"}, Deny},
+		{[]string{"git", "log", "$HOME"}, Allow},
+		{[]string{"echo", "rm -rf /"}, Allow},
+		{nil, Allow},
+	}
+	for _, tt := range tests {
+		if got := p.EvaluateArgv(tt.argv, Options{}).Decision; got != tt.want {
+			t.Errorf("%q: got %s, want %s", tt.argv, got, tt.want)
+		}
+	}
+}
+
 func TestDecisionText(t *testing.T) {
 	for _, d := range []Decision{Allow, Confirm, Deny} {
 		got, err := ParseDecision(d.String())

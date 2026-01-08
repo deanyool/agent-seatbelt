@@ -23,6 +23,9 @@ const (
 	exitUsage   = 2
 	exitConfirm = 3
 	exitDeny    = 4
+	// exitBlocked is what run and the shims return for a refused command. It is
+	// the code a shell uses for a command that cannot execute.
+	exitBlocked = 126
 )
 
 const usage = `seatbelt puts a policy between AI agents and dangerous CLIs.
@@ -30,6 +33,8 @@ const usage = `seatbelt puts a policy between AI agents and dangerous CLIs.
 Usage:
   seatbelt check [--json] [--policy FILE] 'COMMAND'     check a shell command
   seatbelt check [--json] [--policy FILE] -- ARGV...    check an argument list
+  seatbelt run [--policy FILE] -- ARGV...               check, then run
+  seatbelt run [--policy FILE] -c 'COMMAND'             check, then run through sh
   seatbelt hook claude-code [--policy FILE]             Claude Code PreToolUse hook
   seatbelt log [--decision D] [--grep TEXT] [--since D] search the audit log
   seatbelt preset list|show NAME                        built-in presets
@@ -45,8 +50,12 @@ type App struct {
 	Stdout  io.Writer
 	Stderr  io.Writer
 	Getenv  func(string) string
+	Environ func() []string
 	Getwd   func() (string, error)
 	Now     func() time.Time
+	// OpenTTY opens the controlling terminal. The prompts that matter read from it
+	// rather than stdin, since stdin is whatever the agent piped in.
+	OpenTTY func() (io.ReadWriteCloser, error)
 	// Color forces terminal colors on or off for output to Stdout.
 	Color bool
 }
@@ -58,8 +67,10 @@ func New() *App {
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
 		Getenv:     os.Getenv,
+		Environ:    os.Environ,
 		Getwd:      os.Getwd,
 		Now:        time.Now,
+		OpenTTY:    func() (io.ReadWriteCloser, error) { return os.OpenFile("/dev/tty", os.O_RDWR, 0) },
 		Color:      os.Getenv("NO_COLOR") == "" && isTerminal(os.Stdout),
 	}
 }
@@ -81,6 +92,8 @@ func (a *App) Main(args []string) int {
 	switch cmd {
 	case "check":
 		run = a.check
+	case "run":
+		run = a.run
 	case "hook":
 		run = a.hook
 	case "log":

@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +24,14 @@ type harness struct {
 	execed []string
 }
 
+type fakeTTY struct {
+	in  io.Reader
+	out bytes.Buffer
+}
+
+func (f *fakeTTY) Read(p []byte) (int, error)  { return f.in.Read(p) }
+func (f *fakeTTY) Write(p []byte) (int, error) { return f.out.Write(p) }
+func (f *fakeTTY) Close() error                { return nil }
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	dir := t.TempDir()
@@ -40,8 +50,15 @@ func newHarness(t *testing.T) *harness {
 		Stdout:  h.out,
 		Stderr:  h.err,
 		Getenv:  func(k string) string { return h.env[k] },
+		Environ: func() []string { return []string{"PATH=/usr/bin:/bin"} },
 		Getwd:   func() (string, error) { return dir, nil },
 		Now:     func() time.Time { return time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC) },
+		OpenTTY: func() (io.ReadWriteCloser, error) {
+			if h.noTTY {
+				return nil, errors.New("no terminal")
+			}
+			return &fakeTTY{in: strings.NewReader(h.tty)}, nil
+		},
 	}
 	return h
 }
@@ -158,6 +175,65 @@ func TestPolicySelection(t *testing.T) {
 	}
 }
 
+func TestRun(t *testing.T) {
+	h := newHarness(t)
+	marker := filepath.Join(h.dir, "ran")
+	if code := h.run("run", "--", "/usr/bin/touch", marker); code != 0 {
+		t.Fatalf("code = %d, %q", code, h.err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Error("the command did not run")
+	}
+	if code := h.run("run", "-c", "exit 7"); code != 7 {
+		t.Errorf("exit code = %d", code)
+	}
+	if code := h.run("run", "--", "/nonexistent/x"); code != 127 {
+		t.Errorf("missing program = %d", code)
+	}
+	if code := h.run("run", "--", "rm", marker); code != exitBlocked {
+		t.Errorf("rm = %d", code)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Error("rm ran")
+	}
+	if !strings.Contains(h.err.String(), "denied") {
+		t.Errorf("stderr = %q", h.err)
+	}
+	if lines := h.logLines(t); len(lines) != 4 {
+		t.Errorf("log = %q", lines)
+	}
+}
+
+func TestRunConfirm(t *testing.T) {
+	path := func(h *harness) string {
+		return h.writePolicy(t, "version: 1\nrules:\n- {id: c, command: touch, decision: confirm, reason: asks}\n")
+	}
+	h := newHarness(t)
+	marker := filepath.Join(h.dir, "m")
+	h.tty = "n\n"
+	if code := h.run("run", "--policy", path(h), "--", "touch", marker); code != exitBlocked {
+		t.Errorf("declined: %d", code)
+	}
+	h.tty = "yes\n"
+	if code := h.run("run", "--policy", path(h), "--", "touch", marker); code != 0 {
+		t.Errorf("accepted: %d %q", code, h.err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Error("not run after yes")
+	}
+	lines := h.logLines(t)
+	if len(lines) != 3 || !strings.Contains(lines[2], "confirmed by a person") {
+		t.Errorf("log = %q", lines)
+	}
+	h.noTTY = true
+	if code := h.run("run", "--policy", path(h), "--", "touch", marker); code != exitBlocked {
+		t.Errorf("no terminal: %d", code)
+	}
+	if !strings.Contains(h.err.String(), "no terminal") {
+		t.Errorf("stderr = %q", h.err)
+	}
+}
+
 func TestPresetCommands(t *testing.T) {
 	h := newHarness(t)
 	if code := h.run("preset", "list"); code != 0 || !strings.Contains(h.out.String(), "kubectl") {
@@ -220,5 +296,16 @@ func TestAuditFailureDoesNotChangeTheDecision(t *testing.T) {
 	}
 	if !strings.Contains(h.out.String(), `"deny"`) || !strings.Contains(h.err.String(), "audit log") {
 		t.Errorf("out=%q err=%q", h.out, h.err)
+	}
+}
+
+func TestReadLine(t *testing.T) {
+	got, err := readLine(strings.NewReader("abc\ndef"))
+	if err != nil || got != "abc" {
+		t.Errorf("%q %v", got, err)
+	}
+	got, err = readLine(strings.NewReader("abc"))
+	if !errors.Is(err, io.EOF) || got != "abc" {
+		t.Errorf("%q %v", got, err)
 	}
 }

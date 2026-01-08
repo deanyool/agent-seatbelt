@@ -2,8 +2,11 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/deanyool/agent-seatbelt/internal/policy"
@@ -86,4 +89,114 @@ func oneLine(s string) string {
 		return s[:97] + "..."
 	}
 	return s
+}
+
+// run checks a command and, if the policy lets it through, runs it.
+func (a *App) run(args []string) int {
+	fs := a.flags("run")
+	policyPath := fs.String("policy", "", "policy file")
+	shellCmd := fs.String("c", "", "run this string through sh")
+	if code, ok := parseFlags(fs, args); !ok {
+		return code
+	}
+	argv := fs.Args()
+	if (*shellCmd == "") == (len(argv) == 0) {
+		return a.usageError("run needs either -c 'COMMAND' or -- ARGV...")
+	}
+	p, err := a.loadPolicy(*policyPath)
+	if err != nil {
+		return a.fail(err)
+	}
+	cwd := a.cwd()
+	o := policy.Options{CWD: cwd}
+	var rep policy.Report
+	if *shellCmd != "" {
+		rep = p.Evaluate(*shellCmd, o)
+		argv = []string{"/bin/sh", "-c", *shellCmd}
+	} else {
+		rep = p.EvaluateArgv(argv, o)
+	}
+	a.recordReport(p, "run", cwd, "", rep)
+	if code, proceed := a.gate(p, rep, "run", cwd); !proceed {
+		return code
+	}
+	return a.spawn(argv)
+}
+
+// gate turns a decision into go or no-go, prompting a person where needed.
+func (a *App) gate(p *policy.Policy, rep policy.Report, source, cwd string) (code int, proceed bool) {
+	switch rep.Decision {
+	case policy.Allow:
+		return 0, true
+	case policy.Deny:
+		fmt.Fprintf(a.Stderr, "seatbelt: denied: %s\n", rep.Reason())
+		return exitBlocked, false
+	}
+	ok, err := a.confirm(rep)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "seatbelt: denied: %s, and there is no terminal to ask on (%v)\n", rep.Reason(), err)
+		return exitBlocked, false
+	}
+	if !ok {
+		fmt.Fprintln(a.Stderr, "seatbelt: not confirmed")
+		return exitBlocked, false
+	}
+	a.record(p, auditConfirmed(source, cwd, rep))
+	return 0, true
+}
+
+func (a *App) confirm(rep policy.Report) (bool, error) {
+	tty, err := a.OpenTTY()
+	if err != nil {
+		return false, err
+	}
+	defer tty.Close()
+	fmt.Fprintf(tty, "seatbelt: %s\n  %s\nRun it? [y/N] ", rep.Reason(), rep.Input)
+	line, err := readLine(tty)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, err
+	}
+	answer := strings.ToLower(strings.TrimSpace(line))
+	return answer == "y" || answer == "yes", nil
+}
+
+func readLine(r io.Reader) (string, error) {
+	var sb strings.Builder
+	buf := make([]byte, 1)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			if buf[0] == '\n' {
+				return sb.String(), nil
+			}
+			sb.WriteByte(buf[0])
+		}
+		if err != nil {
+			return sb.String(), err
+		}
+	}
+}
+
+// spawn runs a program as a child, passing through its streams and exit code.
+func (a *App) spawn(argv []string) int {
+	return a.spawnIn("", argv)
+}
+
+func (a *App) spawnIn(dir string, argv []string) int {
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Dir = dir
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = a.Stdin, a.Stdout, a.Stderr
+	cmd.Env = a.Environ()
+	err := cmd.Run()
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+		return exitOK
+	case errors.As(err, &exit):
+		return exit.ExitCode()
+	case errors.Is(err, os.ErrNotExist) || errors.Is(err, exec.ErrNotFound):
+		fmt.Fprintf(a.Stderr, "seatbelt: %v\n", err)
+		return 127
+	}
+	return a.fail(err)
 }

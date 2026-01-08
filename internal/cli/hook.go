@@ -3,8 +3,22 @@ package cli
 import (
 	"fmt"
 
+	"github.com/deanyool/agent-seatbelt/internal/audit"
 	"github.com/deanyool/agent-seatbelt/internal/hook"
+	"github.com/deanyool/agent-seatbelt/internal/policy"
 )
+func auditConfirmed(source, cwd string, rep policy.Report) audit.Entry {
+	w := rep.Worst()
+	return audit.Entry{
+		Source:   source,
+		Command:  rep.Input,
+		Decision: policy.Allow,
+		Rule:     w.Rule,
+		Reason:   "confirmed by a person: " + w.Reason,
+		CWD:      cwd,
+	}
+}
+
 func (a *App) hook(args []string) int {
 	if len(args) == 0 {
 		return a.usageError("hook needs a subcommand: claude-code, print or install")

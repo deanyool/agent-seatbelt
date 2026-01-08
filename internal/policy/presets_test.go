@@ -467,3 +467,31 @@ func TestDangerousEnv(t *testing.T) {
 		"bash -c 'PATH=/tmp/evil ls'",
 	)
 }
+
+func TestOrdinaryCommandsPass(t *testing.T) {
+	expect(t, Allow,
+		"npm test",
+		"go build ./...",
+		"make",
+		"ls -la | grep foo | head -5",
+		"cat README.md",
+		`grep -rn "TODO" src/`,
+		"python3 -m pytest",
+		"echo $HOME",
+		`echo "$(date)"`,
+		"for f in *.go; do echo $f; done",
+		"bash scripts/test.sh",
+		"./run.sh",
+		"[ -f x ] && echo yes",
+		"[[ -f x ]] && echo yes",
+		"test -d x || mkdir x",
+		"true",
+		":",
+		"",
+		"# just a comment",
+		"cd /tmp && ls",
+		"sudo -l",
+		"command -v git",
+		"exec 2>&1",
+	)
+}
