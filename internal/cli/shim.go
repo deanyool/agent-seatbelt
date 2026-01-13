@@ -75,7 +75,10 @@ func (a *App) shimMain(name string, args []string) int {
 	if code, proceed := a.gate(p, rep, "shim", cwd); !proceed {
 		return code
 	}
-	return a.fail(a.Exec(target, argv, a.Environ()))
+	if err := a.Exec(target, argv, a.Environ()); err != nil {
+		return a.fail(err)
+	}
+	return exitOK
 }
 
 func (a *App) blockShim(name string, err error) int {

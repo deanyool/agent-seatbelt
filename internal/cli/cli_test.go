@@ -328,6 +328,35 @@ func shimEnv(t *testing.T, h *harness) string {
 	return bin
 }
 
+func TestShimMain(t *testing.T) {
+	h := newHarness(t)
+	bin := shimEnv(t, h)
+
+	if code := h.app.Main([]string{"git", "status"}); code != 0 {
+		t.Fatalf("code = %d, %q", code, h.err)
+	}
+	if len(h.execed) != 1 || h.execed[0] != filepath.Join(bin, "git")+" git status" {
+		t.Errorf("exec = %q", h.execed)
+	}
+	h.execed = nil
+	if code := h.app.Main([]string{"/some/where/git", "push", "--force"}); code != exitBlocked {
+		t.Errorf("denied: %d", code)
+	}
+	if len(h.execed) != 0 {
+		t.Errorf("exec = %q", h.execed)
+	}
+	h.noTTY = true
+	if code := h.app.Main([]string{"git", "push"}); code != exitBlocked {
+		t.Errorf("no terminal: %d", code)
+	}
+	if code := h.app.Main([]string{"nothing-here"}); code != 127 {
+		t.Errorf("missing: %d", code)
+	}
+	if lines := h.logLines(t); len(lines) != 3 {
+		t.Errorf("log = %q", lines)
+	}
+}
+
 func TestShimRefusesOnBrokenPolicy(t *testing.T) {
 	h := newHarness(t)
 	shimEnv(t, h)
