@@ -4,6 +4,15 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.4.0] - 2026-01-12
+
+### Added
+- Shell shim mode and `seatbelt run`.
+- `psql` and `mysql` presets, and `flag_values` rules.
+- Declared global flags. An allow rule now needs every flag ahead of the subcommand to
+  be declared.
+- Dangerous environment variables such as `LD_PRELOAD` and `GIT_SSH_COMMAND` are denied.
+
 ## [0.3.0] - 2025-12-03
 
 ### Added
