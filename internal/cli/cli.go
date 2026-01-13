@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/deanyool/agent-seatbelt/internal/audit"
@@ -36,6 +37,8 @@ Usage:
   seatbelt run [--policy FILE] -- ARGV...               check, then run
   seatbelt run [--policy FILE] -c 'COMMAND'             check, then run through sh
   seatbelt hook claude-code [--policy FILE]             Claude Code PreToolUse hook
+  seatbelt shim install [--dir DIR] NAME...             create PATH shims
+  seatbelt shim list [--dir DIR]                        list installed shims
   seatbelt log [--decision D] [--grep TEXT] [--since D] search the audit log
   seatbelt preset list|show NAME                        built-in presets
   seatbelt version
@@ -56,6 +59,10 @@ type App struct {
 	// OpenTTY opens the controlling terminal. The prompts that matter read from it
 	// rather than stdin, since stdin is whatever the agent piped in.
 	OpenTTY func() (io.ReadWriteCloser, error)
+	// Exec replaces the process, for shims.
+	Exec func(path string, argv, env []string) error
+	// Executable returns the path of the seatbelt binary.
+	Executable func() (string, error)
 	// Color forces terminal colors on or off for output to Stdout.
 	Color bool
 }
@@ -71,8 +78,18 @@ func New() *App {
 		Getwd:      os.Getwd,
 		Now:        time.Now,
 		OpenTTY:    func() (io.ReadWriteCloser, error) { return os.OpenFile("/dev/tty", os.O_RDWR, 0) },
+		Exec:       syscall.Exec,
+		Executable: executable,
 		Color:      os.Getenv("NO_COLOR") == "" && isTerminal(os.Stdout),
 	}
+}
+
+func executable() (string, error) {
+	path, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(path)
 }
 
 func isTerminal(f *os.File) bool {
@@ -83,6 +100,9 @@ func isTerminal(f *os.File) bool {
 // Main runs the command line and returns the exit code. A name other than seatbelt
 // in args[0] means this process was started through a shim.
 func (a *App) Main(args []string) int {
+	if name := filepath.Base(args[0]); !strings.HasPrefix(name, "seatbelt") {
+		return a.shimMain(name, args[1:])
+	}
 	if len(args) < 2 {
 		fmt.Fprint(a.Stderr, usage)
 		return exitUsage
@@ -96,6 +116,8 @@ func (a *App) Main(args []string) int {
 		run = a.run
 	case "hook":
 		run = a.hook
+	case "shim":
+		run = a.shim
 	case "log":
 		run = a.log
 	case "preset":

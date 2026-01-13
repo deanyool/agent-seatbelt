@@ -45,6 +45,10 @@ func newHarness(t *testing.T) *harness {
 		},
 	}
 	t.Setenv("HOME", dir)
+	self := filepath.Join(dir, "seatbelt")
+	if err := os.WriteFile(self, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	h.app = &App{
 		Stdin:   strings.NewReader(""),
 		Stdout:  h.out,
@@ -59,6 +63,11 @@ func newHarness(t *testing.T) *harness {
 			}
 			return &fakeTTY{in: strings.NewReader(h.tty)}, nil
 		},
+		Exec: func(path string, argv, _ []string) error {
+			h.execed = append(h.execed, path+" "+strings.Join(argv, " "))
+			return nil
+		},
+		Executable: func() (string, error) { return self, nil },
 	}
 	return h
 }
@@ -284,6 +293,59 @@ func TestHookCommand(t *testing.T) {
 	}
 	if code := h.run("hook", "claude-code", "--nope"); code != 2 {
 		t.Errorf("a bad flag must block: %d", code)
+	}
+}
+
+func TestShimCommands(t *testing.T) {
+	h := newHarness(t)
+	dir := filepath.Join(h.dir, "shims")
+	if code := h.run("shim", "install", "--dir", dir, "git", "kubectl"); code != 0 {
+		t.Fatalf("install: %d %q", code, h.err)
+	}
+	if !strings.Contains(h.out.String(), "export PATH") {
+		t.Errorf("out = %q", h.out)
+	}
+	if code := h.run("shim", "list", "--dir", dir); code != 0 || h.out.String() != "git\nkubectl\n" {
+		t.Errorf("list: %d %q", code, h.out)
+	}
+	if code := h.run("shim", "install", "--dir", dir, "a/b"); code != exitFailure {
+		t.Errorf("bad name: %d", code)
+	}
+}
+
+func shimEnv(t *testing.T, h *harness) string {
+	t.Helper()
+	bin := filepath.Join(h.dir, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"git", "ls"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.env["PATH"] = bin
+	return bin
+}
+
+func TestShimRefusesOnBrokenPolicy(t *testing.T) {
+	h := newHarness(t)
+	shimEnv(t, h)
+	h.env["SEATBELT_POLICY"] = h.writePolicy(t, "version: 9\n")
+	if code := h.app.Main([]string{"git", "status"}); code != exitBlocked {
+		t.Errorf("code = %d", code)
+	}
+	if len(h.execed) != 0 {
+		t.Errorf("exec = %q", h.execed)
+	}
+}
+
+func TestExecFailureIsReported(t *testing.T) {
+	h := newHarness(t)
+	shimEnv(t, h)
+	h.app.Exec = func(string, []string, []string) error { return errors.New("exec failed") }
+	if code := h.app.Main([]string{"ls"}); code != exitFailure {
+		t.Errorf("code = %d", code)
 	}
 }
 
