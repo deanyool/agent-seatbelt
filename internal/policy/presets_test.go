@@ -450,6 +450,20 @@ func TestMysqlPreset(t *testing.T) {
 	)
 }
 
+func TestSeatbeltPreset(t *testing.T) {
+	expect(t, Allow, "seatbelt check 'ls'", "seatbelt log", "seatbelt plan show", "seatbelt plan add -- git push", "seatbelt preset list")
+	expect(t, Deny,
+		"seatbelt plan approve",
+		"seatbelt plan apply",
+		"seatbelt init --force",
+		"seatbelt shim install git",
+		"seatbelt hook install",
+		"seatbelt run -- git status",
+		"seatbelt --policy /tmp/x plan approve",
+		"seatbelt unknown",
+	)
+}
+
 func TestDangerousEnv(t *testing.T) {
 	expect(t, Allow, "FOO=1 ls", "export FOO=1", "NODE_ENV=test npm test")
 	expect(t, Deny,

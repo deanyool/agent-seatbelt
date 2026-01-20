@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/deanyool/agent-seatbelt/internal/audit"
+	"github.com/deanyool/agent-seatbelt/internal/plan"
 	"github.com/deanyool/agent-seatbelt/internal/policy"
 	"github.com/deanyool/agent-seatbelt/internal/version"
 )
@@ -39,6 +40,7 @@ Usage:
   seatbelt hook claude-code [--policy FILE]             Claude Code PreToolUse hook
   seatbelt shim install [--dir DIR] NAME...             create PATH shims
   seatbelt shim list [--dir DIR]                        list installed shims
+  seatbelt plan add|list|show|approve|apply|clear       plan-then-commit
   seatbelt log [--decision D] [--grep TEXT] [--since D] search the audit log
   seatbelt preset list|show NAME                        built-in presets
   seatbelt version
@@ -118,6 +120,8 @@ func (a *App) Main(args []string) int {
 		run = a.hook
 	case "shim":
 		run = a.shim
+	case "plan":
+		run = a.plan
 	case "log":
 		run = a.log
 	case "preset":
@@ -235,6 +239,10 @@ func (a *App) recordReport(p *policy.Policy, source, cwd, session string, r poli
 		CWD:      cwd,
 		Session:  session,
 	})
+}
+
+func (a *App) planPath() (string, error) {
+	return plan.DefaultPath(a.Getenv)
 }
 
 func (a *App) colorize(d policy.Decision) string {

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/deanyool/agent-seatbelt/internal/plan"
 )
 
 type harness struct {
@@ -42,6 +43,7 @@ func newHarness(t *testing.T) *harness {
 		env: map[string]string{
 			"SEATBELT_POLICY":    "",
 			"SEATBELT_AUDIT_LOG": filepath.Join(dir, "audit.jsonl"),
+			"SEATBELT_PLAN":      filepath.Join(dir, "plan.json"),
 		},
 	}
 	t.Setenv("HOME", dir)
@@ -240,6 +242,90 @@ func TestRunConfirm(t *testing.T) {
 	}
 	if !strings.Contains(h.err.String(), "no terminal") {
 		t.Errorf("stderr = %q", h.err)
+	}
+}
+
+func TestPlanFlow(t *testing.T) {
+	h := newHarness(t)
+	marker := filepath.Join(h.dir, "applied")
+
+	if code := h.run("plan", "show"); code != 0 || !strings.Contains(h.out.String(), "nothing pending") {
+		t.Errorf("empty show: %d %q", code, h.out)
+	}
+	if code := h.run("plan", "approve"); code != 0 || !strings.Contains(h.out.String(), "nothing pending") {
+		t.Errorf("empty approve: %d %q", code, h.out)
+	}
+	if code := h.run("plan", "add", "--", "touch", marker); code != 0 {
+		t.Fatalf("add: %d %q", code, h.err)
+	}
+	if code := h.run("plan", "add", "--", "rm", "-rf", "/"); code != exitDeny {
+		t.Errorf("denied add: %d", code)
+	}
+	if code := h.run("plan", "list"); code != 0 || !strings.Contains(h.out.String(), "not approved") || !strings.Contains(h.out.String(), "touch") {
+		t.Errorf("list: %d %q", code, h.out)
+	}
+	if code := h.run("plan", "apply"); code != exitFailure || !strings.Contains(h.err.String(), "not been approved") {
+		t.Errorf("unapproved apply: %d %q", code, h.err)
+	}
+
+	p, err := plan.Load(h.env["SEATBELT_PLAN"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.tty = "wrong\n"
+	if code := h.run("plan", "approve"); code != exitFailure {
+		t.Errorf("wrong code: %d", code)
+	}
+	h.noTTY = true
+	if code := h.run("plan", "approve"); code != exitFailure || !strings.Contains(h.err.String(), "needs a terminal") {
+		t.Errorf("no terminal: %d %q", code, h.err)
+	}
+	h.noTTY = false
+	h.tty = p.Digest()[:6] + "\n"
+	if code := h.run("plan", "approve"); code != 0 {
+		t.Fatalf("approve: %d %q", code, h.err)
+	}
+	if code := h.run("plan", "show"); code != 0 || !strings.Contains(h.out.String(), "1 pending, approved") {
+		t.Errorf("show: %d %q", code, h.out)
+	}
+	if code := h.run("plan", "apply"); code != 0 {
+		t.Fatalf("apply: %d %q", code, h.err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Error("the plan did not run")
+	}
+	if !strings.Contains(h.out.String(), "applied 1") {
+		t.Errorf("out = %q", h.out)
+	}
+}
+
+func TestPlanApplyRechecksAndReportsFailure(t *testing.T) {
+	h := newHarness(t)
+	path := h.env["SEATBELT_PLAN"]
+	for _, c := range []string{"exit 3", "rm -rf /tmp/x", "# MCP tool call: x"} {
+		h2 := newHarness(t)
+		h2.env["SEATBELT_PLAN"] = path + c[:1]
+		if _, err := plan.Add(h2.env["SEATBELT_PLAN"], plan.Entry{Command: c}); err != nil {
+			t.Fatal(err)
+		}
+		p, _ := plan.Load(h2.env["SEATBELT_PLAN"])
+		if err := plan.Approve(h2.env["SEATBELT_PLAN"], p.Digest(), time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		if code := h2.run("plan", "apply"); code != exitFailure {
+			t.Errorf("%q: %d", c, code)
+		}
+		if !strings.Contains(h2.err.String(), "stopped after 0") {
+			t.Errorf("%q: %q", c, h2.err)
+		}
+	}
+}
+
+func TestPlanClear(t *testing.T) {
+	h := newHarness(t)
+	h.run("plan", "add", "--", "touch", "x")
+	if code := h.run("plan", "clear"); code != 0 || !strings.Contains(h.out.String(), "1 pending") {
+		t.Errorf("clear: %d %q", code, h.out)
 	}
 }
 

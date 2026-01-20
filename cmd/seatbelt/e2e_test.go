@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -185,5 +186,24 @@ func TestShimEndToEnd(t *testing.T) {
 	stdout, stderr, code = run("push", "--force")
 	if code != 126 || stdout != "" || !strings.Contains(stderr, "force") {
 		t.Errorf("denied: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
+func TestPlanApproveNeedsATerminal(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no /dev/tty")
+	}
+	e := newEnv(t)
+	if _, stderr, code := e.run(t, "", "plan", "add", "--", "git", "push"); code != 0 {
+		t.Fatalf("add: %d %q", code, stderr)
+	}
+	// With no controlling terminal, as under an agent, there is nobody to ask.
+	cmd := exec.Command(binary, "plan", "approve")
+	cmd.Env = e.vars
+	cmd.Stdin = strings.NewReader("anything\n")
+	cmd.SysProcAttr = detached()
+	out, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "needs a terminal") {
+		t.Errorf("err=%v output=%q", err, out)
 	}
 }
