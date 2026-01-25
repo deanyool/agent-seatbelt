@@ -163,7 +163,7 @@ func (p *Plan) Pending() []Entry {
 func (p *Plan) Digest() string {
 	h := sha256.New()
 	for _, e := range p.Pending() {
-		fmt.Fprintf(h, "%s%s%s", e.ID, e.CWD, e.Command)
+		fmt.Fprintf(h, "%d:%s\x00%d:%s\x00%d:%s\x00", len(e.ID), e.ID, len(e.CWD), e.CWD, len(e.Command), e.Command)
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }

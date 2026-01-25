@@ -236,6 +236,21 @@ func TestConcurrentAdds(t *testing.T) {
 	}
 }
 
+func TestDigestDependsOnCommandAndDirectory(t *testing.T) {
+	a := &Plan{Entries: []Entry{{ID: "1", Command: "x", CWD: "/a", Status: Pending}}}
+	b := &Plan{Entries: []Entry{{ID: "1", Command: "x", CWD: "/b", Status: Pending}}}
+	c := &Plan{Entries: []Entry{{ID: "1", Command: "y", CWD: "/a", Status: Pending}}}
+	if a.Digest() == b.Digest() || a.Digest() == c.Digest() {
+		t.Error("digest should change with the command or the directory")
+	}
+	// Field boundaries must count: moving text between fields changes the digest.
+	d := &Plan{Entries: []Entry{{ID: "1", Command: "bc", CWD: "a", Status: Pending}}}
+	e := &Plan{Entries: []Entry{{ID: "1", Command: "c", CWD: "ab", Status: Pending}}}
+	if d.Digest() == e.Digest() {
+		t.Error("digest ignores field boundaries")
+	}
+}
+
 func TestDefaultPath(t *testing.T) {
 	got, err := DefaultPath(func(string) string { return "/x" })
 	if err != nil || got != "/x" {
