@@ -132,6 +132,14 @@ func (a *App) gate(p *policy.Policy, rep policy.Report, source, cwd string) (cod
 		fmt.Fprintf(a.Stderr, "seatbelt: denied: %s\n", rep.Reason())
 		return exitBlocked, false
 	}
+	if p.Settings.ConfirmMode == policy.ConfirmPlan {
+		msg, err := a.queue(rep.Input, cwd, source, rep)
+		if err != nil {
+			return a.fail(err), false
+		}
+		fmt.Fprintln(a.Stderr, msg)
+		return exitBlocked, false
+	}
 	ok, err := a.confirm(rep)
 	if err != nil {
 		fmt.Fprintf(a.Stderr, "seatbelt: denied: %s, and there is no terminal to ask on (%v)\n", rep.Reason(), err)

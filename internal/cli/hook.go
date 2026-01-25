@@ -48,6 +48,9 @@ func (a *App) hookRun(args []string) int {
 		Observe: func(v hook.Verdict) {
 			a.recordReport(p, "hook", v.Input.CWD, v.Input.SessionID, v.Report)
 		},
+		Queue: func(v hook.Verdict) (string, error) {
+			return a.queue(v.Command, v.Input.CWD, "hook", v.Report)
+		},
 	})
 	fmt.Fprint(a.Stdout, result.Stdout)
 	fmt.Fprint(a.Stderr, result.Stderr)

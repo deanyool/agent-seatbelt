@@ -120,6 +120,30 @@ func TestReadFailureBlocks(t *testing.T) {
 	}
 }
 
+func TestPlanMode(t *testing.T) {
+	p, err := policy.Parse([]byte("version: 1\npresets: [git]\nsettings: {confirm_mode: plan}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var queued []string
+	o := Options{Policy: p, Queue: func(v Verdict) (string, error) {
+		queued = append(queued, v.Command)
+		return "queued as a1", nil
+	}}
+	r := Run(strings.NewReader(bashPayload("git push")), o)
+	got, reason := decisionOf(t, r)
+	if got != "deny" || reason != "queued as a1" {
+		t.Errorf("got %q %q", got, reason)
+	}
+	if len(queued) != 1 || queued[0] != "git push" {
+		t.Errorf("queued = %q", queued)
+	}
+	o.Queue = func(Verdict) (string, error) { return "", errors.New("disk full") }
+	if r := Run(strings.NewReader(bashPayload("git push")), o); r.Code != 2 {
+		t.Errorf("queue failure must block: %+v", r)
+	}
+}
+
 func TestObserveSeesEveryDecision(t *testing.T) {
 	p := defaultPolicy(t)
 	var seen []policy.Decision

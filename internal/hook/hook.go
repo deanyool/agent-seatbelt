@@ -61,6 +61,9 @@ type Options struct {
 	Policy *policy.Policy
 	// Observe is called with each verdict, for the audit log.
 	Observe func(Verdict)
+	// Queue handles a confirm decision when the policy says to plan. It returns
+	// the message for the model.
+	Queue func(Verdict) (string, error)
 }
 
 // block ends the hook with a refusal that doesn't depend on parsing any JSON.
@@ -102,6 +105,13 @@ func Run(stdin io.Reader, o Options) Result {
 	case policy.Allow:
 		return Result{}
 	case policy.Confirm:
+		if o.Policy.Settings.ConfirmMode == policy.ConfirmPlan && o.Queue != nil {
+			msg, err := o.Queue(v)
+			if err != nil {
+				return block("cannot queue this command: %v", err)
+			}
+			return decide("deny", msg)
+		}
 		return decide("ask", rep.Reason())
 	}
 	return decide("deny", "seatbelt: "+rep.Reason())

@@ -9,6 +9,11 @@ import (
 	"github.com/deanyool/agent-seatbelt/internal/shell"
 )
 
+// Confirm modes.
+const (
+	ConfirmAsk  = "ask"
+	ConfirmPlan = "plan"
+)
 
 // Settings are the policy-wide fallbacks.
 type Settings struct {
@@ -16,6 +21,7 @@ type Settings struct {
 	UnknownCommands Decision
 	Unparsed        Decision
 	Dynamic         Decision
+	ConfirmMode     string
 	AuditLog        string
 }
 

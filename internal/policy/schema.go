@@ -23,6 +23,7 @@ type settingsSchema struct {
 	UnknownCommands *Decision `yaml:"unknown_commands"`
 	Unparsed        *Decision `yaml:"unparsed"`
 	Dynamic         *Decision `yaml:"dynamic"`
+	ConfirmMode     string    `yaml:"confirm_mode"`
 	AuditLog        string    `yaml:"audit_log"`
 	DangerousEnv    []string  `yaml:"dangerous_env"`
 }

@@ -245,6 +245,24 @@ func TestRunConfirm(t *testing.T) {
 	}
 }
 
+func TestRunPlanMode(t *testing.T) {
+	h := newHarness(t)
+	path := h.writePolicy(t, "version: 1\npresets: [git]\nsettings: {confirm_mode: plan}\n")
+	if code := h.run("run", "--policy", path, "--", "git", "push"); code != exitBlocked {
+		t.Fatalf("code = %d", code)
+	}
+	if !strings.Contains(h.err.String(), "queued as") {
+		t.Errorf("stderr = %q", h.err)
+	}
+	p, err := plan.Load(h.env["SEATBELT_PLAN"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Pending()) != 1 || p.Pending()[0].Command != "git push" {
+		t.Errorf("plan = %+v", p)
+	}
+}
+
 func TestPlanFlow(t *testing.T) {
 	h := newHarness(t)
 	marker := filepath.Join(h.dir, "applied")

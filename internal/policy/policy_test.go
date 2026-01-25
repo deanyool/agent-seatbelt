@@ -41,6 +41,7 @@ func TestParseRejects(t *testing.T) {
 		{"unknown preset", "version: 1\npresets: [nope]", "unknown preset"},
 		{"unknown disable", "version: 1\ndisable: [nope]", "no rule named"},
 		{"unparsed allow", "version: 1\nsettings: {unparsed: allow}", "cannot be allow"},
+		{"bad confirm mode", "version: 1\nsettings: {confirm_mode: later}", "unknown mode"},
 		{"flag values without flags", "version: 1\nrules:\n- {id: a, command: x, flag_values: [{any: [x]}], decision: deny}", "needs flags"},
 		{"bad scalar", "version: 1\nrules:\n- {id: a, command: {x: y}, decision: deny}", "expected a string"},
 	}

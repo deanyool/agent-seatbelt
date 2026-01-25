@@ -105,6 +105,7 @@ func newBuilder() *builder {
 				UnknownCommands: Allow,
 				Unparsed:        Deny,
 				Dynamic:         Deny,
+				ConfirmMode:     ConfirmAsk,
 			},
 			specs:   map[string]*CommandSpec{},
 			aliases: map[string]string{},
@@ -210,6 +211,13 @@ func (b *builder) settings(s *settingsSchema) error {
 	assign(&set.Dynamic, s.Dynamic)
 	if set.Unparsed == Allow {
 		return errors.New("settings.unparsed cannot be allow: a command that can't be read can't be trusted")
+	}
+	switch s.ConfirmMode {
+	case "":
+	case ConfirmAsk, ConfirmPlan:
+		set.ConfirmMode = s.ConfirmMode
+	default:
+		return fmt.Errorf("settings.confirm_mode: unknown mode %q (want ask or plan)", s.ConfirmMode)
 	}
 	set.AuditLog = s.AuditLog
 	b.policy.dangerousEnv = append(defaultDangerousEnv(), s.DangerousEnv...)

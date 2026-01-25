@@ -245,6 +245,27 @@ func (a *App) planPath() (string, error) {
 	return plan.DefaultPath(a.Getenv)
 }
 
+// queue adds a confirmed command to the plan and returns the note for the agent.
+func (a *App) queue(command, cwd, source string, r policy.Report) (string, error) {
+	path, err := a.planPath()
+	if err != nil {
+		return "", err
+	}
+	w := r.Worst()
+	e, err := plan.Add(path, plan.Entry{
+		Command: command,
+		CWD:     cwd,
+		Source:  source,
+		Rule:    w.Rule,
+		Reason:  w.Reason,
+		AddedAt: a.Now(),
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("seatbelt: queued as %s in the plan. It has not run. A person must review it with `seatbelt plan show` and approve it with `seatbelt plan approve`.", e.ID), nil
+}
+
 func (a *App) colorize(d policy.Decision) string {
 	tag := strings.ToUpper(d.String())
 	if !a.Color {
