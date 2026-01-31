@@ -13,3 +13,5 @@ lint:
 cover:
 	go test -coverprofile=coverage.txt ./internal/...
 	go tool cover -func=coverage.txt | tail -1
+release-check:
+	goreleaser check
