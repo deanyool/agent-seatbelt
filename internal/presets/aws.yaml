@@ -1,0 +1,74 @@
+name: aws
+description: AWS CLI. Describing and listing is free, changes ask first, deletes are refused.
+commands:
+  aws:
+    global_flags:
+      bool: [--debug, --no-verify-ssl, --no-paginate, --no-sign-request, --no-cli-pager, --no-cli-auto-prompt, --version, --help]
+    value_flags: [--region, --profile, --output, --query, --endpoint-url, --color, --ca-bundle, --cli-read-timeout, --cli-connect-timeout, --cli-binary-format, --page-size, --max-items, --starting-token]
+rules:
+  - id: read
+    command: aws
+    subcommand: ["* describe-*", "* list-*", "* get-*", "* head-*", "* batch-get-*", "s3 ls", "sts get-caller-identity", "configure list", "configure get", help]
+    decision: allow
+  - id: version
+    command: aws
+    flags: [--version]
+    decision: allow
+  - id: secrets
+    command: aws
+    subcommand: ["secretsmanager get-*", "secretsmanager batch-get-*", "ecr get-login*", "ecr-public get-login*", "eks get-token", "sts get-session-token", "sts get-federation-token", "sts assume-role*", "kms decrypt", "rds generate-db-auth-token", "lambda get-function", "s3api get-object"]
+    decision: confirm
+    reason: this reads a secret, a credential or a whole object
+  - id: decrypt-parameter
+    command: aws
+    subcommand: ["ssm get-*"]
+    flags: [--with-decryption]
+    decision: confirm
+    reason: this decrypts a secret
+  - id: write
+    command: aws
+    subcommand:
+      - "s3 cp"
+      - "s3 sync"
+      - "s3 mb"
+      - "s3 presign"
+      - "* create-*"
+      - "* put-*"
+      - "* update-*"
+      - "* modify-*"
+      - "* set-*"
+      - "* start-*"
+      - "* stop-*"
+      - "* reboot-*"
+      - "* run-*"
+      - "* invoke*"
+      - "* send-*"
+      - "* tag-*"
+      - "* untag-*"
+      - "* attach-*"
+      - "* detach-*"
+      - "* associate-*"
+      - "* disassociate-*"
+      - "* register-*"
+      - "* add-*"
+      - "* authorize-*"
+      - "* enable-*"
+      - "* disable-*"
+      - "* import-*"
+      - "* export-*"
+      - "configure set"
+      - "cloudformation deploy"
+      - "ssm send-command"
+    decision: confirm
+    reason: this changes AWS resources
+  - id: delete
+    command: aws
+    subcommand: ["* delete-*", "* terminate-*", "* remove-*", "* destroy-*", "* purge-*", "* deregister-*", "* revoke-*", "* cancel-*", "* drop-*", "* batch-delete-*", "s3 rm", "s3 rb", "s3 mv"]
+    decision: deny
+    reason: deleting AWS resources is never allowed
+  - id: sync-delete
+    command: aws
+    subcommand: ["s3 sync"]
+    flags: [--delete]
+    decision: deny
+    reason: this deletes objects at the destination

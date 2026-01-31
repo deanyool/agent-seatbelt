@@ -450,6 +450,50 @@ func TestMysqlPreset(t *testing.T) {
 	)
 }
 
+func TestAwsPreset(t *testing.T) {
+	expect(t, Allow,
+		"aws s3 ls",
+		"aws s3 ls s3://bucket",
+		"aws ec2 describe-instances",
+		"aws iam list-users",
+		"aws sts get-caller-identity",
+		"aws --region us-east-1 ec2 describe-instances",
+		"aws --profile dev s3 ls",
+		"aws s3api get-bucket-policy --bucket x",
+		"aws ec2 describe-instances --region us-east-1 --output json",
+		"aws --version",
+	)
+	expect(t, Confirm,
+		"aws s3 cp a s3://b/a",
+		"aws s3 sync a s3://b",
+		"aws ec2 run-instances --image-id x",
+		"aws ec2 stop-instances --instance-ids i-1",
+		"aws lambda invoke --function-name x out.json",
+		"aws secretsmanager get-secret-value --secret-id x",
+		"aws ssm get-parameter --name x --with-decryption",
+		"aws sts assume-role --role-arn x --role-session-name y",
+	)
+	expect(t, Deny,
+		"aws s3 rm s3://b/a",
+		"aws s3 rm s3://b --recursive",
+		"aws s3 rb s3://b",
+		"aws s3 mv a s3://b",
+		"aws s3 sync a s3://b --delete",
+		"aws ec2 terminate-instances --instance-ids i-1",
+		"aws iam delete-user --user-name x",
+		"aws rds delete-db-instance --db-instance-identifier x",
+		"aws dynamodb delete-table --table-name x",
+		"aws s3api delete-object --bucket b --key k",
+		"aws s3api delete-bucket --bucket b",
+		"aws --region us-east-1 s3 rm s3://b/a",
+		"aws --profile prod ec2 terminate-instances --instance-ids i-1",
+		"aws s3 --region us-east-1 rm s3://b/a",
+		"aws sqs purge-queue --queue-url x",
+		"aws frob nicate",
+		"aws --unknown x ec2 describe-instances",
+	)
+}
+
 func TestSeatbeltPreset(t *testing.T) {
 	expect(t, Allow, "seatbelt check 'ls'", "seatbelt log", "seatbelt plan show", "seatbelt plan add -- git push", "seatbelt preset list")
 	expect(t, Deny,
