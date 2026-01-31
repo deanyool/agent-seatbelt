@@ -1,0 +1,103 @@
+name: sf
+description: Salesforce CLI. Queries and metadata reads are free, record and metadata writes ask first, deletes are refused.
+commands:
+  sf:
+    aliases: [sfdx]
+    colon_subcommands: true
+    global_flags:
+      bool: [--json, --help, -h, --version]
+    value_flags: [-o, --target-org, -u, --targetusername, -q, --query, -f, --file, -s, --sobject, -i, --record-id, -w, --where, -v, --values, --api-version, --flags-dir, -r, --result-format, -d, --output-dir, --loglevel, -X, --method]
+rules:
+  - id: read
+    command: sf
+    subcommand:
+      - org list
+      - org display
+      - data query
+      - data search
+      - data get record
+      - sobject list
+      - sobject describe
+      - apex list log
+      - apex get log
+      - limits api display
+      - package list
+      - package installed list
+      - project deploy preview
+      - project retrieve preview
+      - project list
+      - config get
+      - config list
+      - alias list
+      - version
+      - help
+      - force data soql query
+      - force data record get
+      - force schema sobject describe
+      - force schema sobject list
+      - force org list
+      - force org display
+    decision: allow
+  - id: version
+    command: sf
+    flags: [--version, --help]
+    decision: allow
+  - id: write
+    command: sf
+    subcommand:
+      - data create
+      - data update
+      - data upsert
+      - data import
+      - data export
+      - data resume
+      - project deploy start
+      - project deploy validate
+      - project deploy quick
+      - project deploy resume
+      - project deploy cancel
+      - project retrieve start
+      - org login
+      - org logout
+      - org create
+      - org assign
+      - org generate
+      - org open
+      - apex test
+      - apex tail
+      - api request
+      - package install
+      - package version
+      - config set
+      - alias set
+      - force data record create
+      - force data record update
+      - force source
+      - force mdapi
+      - force apex test
+    decision: confirm
+    reason: this changes records, metadata or local configuration
+  - id: delete
+    command: sf
+    subcommand: ["* delete", "* delete *", "* * delete", "* * * delete", "package uninstall", "force package uninstall"]
+    decision: deny
+    reason: deleting records, metadata or orgs is never allowed
+  - id: anonymous-apex
+    command: sf
+    subcommand: [apex run, force apex execute]
+    decision: deny
+    reason: anonymous Apex can do anything, including delete records
+  - id: api-delete
+    command: sf
+    subcommand: [api request]
+    flag_values:
+      - flags: [-X, --method]
+        any: ["re:(?i)^delete$"]
+    decision: deny
+    reason: DELETE calls are never allowed
+  - id: show-token
+    command: sf
+    subcommand: [org display]
+    flags: [--verbose]
+    decision: deny
+    reason: this prints an access token

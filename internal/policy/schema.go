@@ -40,6 +40,8 @@ type CommandSpec struct {
 	ValueFlags []string `yaml:"value_flags"`
 	// SingleDash means -name is one long flag, not a cluster of letters.
 	SingleDash bool `yaml:"single_dash"`
+	// ColonSubcommands means data:query is the same as data query.
+	ColonSubcommands bool `yaml:"colon_subcommands"`
 }
 
 // GlobalFlags splits declared flags by whether they take a value.

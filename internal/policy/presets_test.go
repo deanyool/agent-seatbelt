@@ -494,6 +494,50 @@ func TestAwsPreset(t *testing.T) {
 	)
 }
 
+func TestSfPreset(t *testing.T) {
+	expect(t, Allow,
+		"sf org list",
+		"sf org display --target-org dev",
+		`sf data query --query "SELECT Id FROM Account LIMIT 5"`,
+		`sf data query -q "SELECT Id FROM Contact" -o dev --json`,
+		"sf data get record --sobject Account --record-id 001",
+		"sf sobject describe --sobject Account",
+		"sf sobject list",
+		"sf project deploy preview",
+		"sf --version",
+		"sf data:query --query x",
+		`sfdx force:data:soql:query -q "select id from account"`,
+	)
+	expect(t, Confirm,
+		"sf data create record --sobject Account --values Name=x",
+		"sf data update record --sobject Account --record-id 001 --values Name=x",
+		"sf data upsert bulk --sobject Account --file a.csv --external-id Id",
+		"sf data import tree --files a.json",
+		"sf project deploy start --source-dir force-app",
+		"sf project retrieve start",
+		"sf org login web",
+		"sf api request rest /services/data",
+		"sf data:create:record --sobject Account",
+		"sfdx force:data:record:create -s Account",
+	)
+	expect(t, Deny,
+		"sf data delete record --sobject Account --record-id 001",
+		"sf data delete bulk --sobject Account --file a.csv",
+		"sf org delete scratch --target-org dev",
+		"sf org delete sandbox --target-org dev",
+		"sf project delete source --metadata ApexClass:X",
+		"sf apex run --file x.apex",
+		"sf package uninstall --package x",
+		"sf data:delete:record --sobject Account",
+		"sfdx force:data:record:delete -s Account",
+		"sfdx force:org:delete",
+		"sf org display --verbose",
+		"sf --json data delete record --sobject Account",
+		"sf api request rest /x --method DELETE",
+		"sf frobnicate",
+	)
+}
+
 func TestSeatbeltPreset(t *testing.T) {
 	expect(t, Allow, "seatbelt check 'ls'", "seatbelt log", "seatbelt plan show", "seatbelt plan add -- git push", "seatbelt preset list")
 	expect(t, Deny,

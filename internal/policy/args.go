@@ -110,6 +110,16 @@ func parseArgs(words []shell.Word, spec *CommandSpec) *parsedArgs {
 			addFlag(f)
 		}
 	}
+	if spec.ColonSubcommands && len(a.Pos) > 0 && strings.Contains(a.Pos[0].Word.Value, ":") {
+		first := a.Pos[0]
+		var split []positional
+		for _, part := range strings.Split(first.Word.Value, ":") {
+			w := first.Word
+			w.Value = part
+			split = append(split, positional{Word: w, Index: first.Index})
+		}
+		a.Pos = append(split, a.Pos[1:]...)
+	}
 	return a
 }
 
