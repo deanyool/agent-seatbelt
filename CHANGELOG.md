@@ -4,6 +4,13 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.5.0] - 2026-01-31
+
+### Added
+- Plan-then-commit: `confirm_mode: plan`, `seatbelt plan`, digest-bound approval.
+- `aws` and `sf` presets.
+- `colon_subcommands`, for tools like `sf data:query`.
+
 ## [0.4.0] - 2026-01-12
 
 ### Added
