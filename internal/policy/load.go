@@ -103,6 +103,7 @@ func newBuilder() *builder {
 			Settings: Settings{
 				Default:         Deny,
 				UnknownCommands: Allow,
+				UnknownTools:    Allow,
 				Unparsed:        Deny,
 				Dynamic:         Deny,
 				ConfirmMode:     ConfirmAsk,
@@ -141,6 +142,23 @@ func (b *builder) add(f *fileSchema, prefix string, user bool) error {
 		if err := b.compileRule(r); err != nil {
 			return fmt.Errorf("rule %s: %w", r.ID, err)
 		}
+	}
+	for i, t := range f.Tools {
+		if t.ID == "" {
+			return fmt.Errorf("tool rule %d has no id", i+1)
+		}
+		if prefix != "" {
+			t.ID = prefix + "/" + t.ID
+		}
+		if b.seen[t.ID] {
+			return fmt.Errorf("duplicate rule id %s", t.ID)
+		}
+		b.seen[t.ID] = true
+		t.user = user
+		if err := compileTool(t); err != nil {
+			return fmt.Errorf("tool rule %s: %w", t.ID, err)
+		}
+		b.policy.tools = append(b.policy.tools, t)
 	}
 	return nil
 }
@@ -183,6 +201,25 @@ func (b *builder) compileRule(r *Rule) error {
 	return nil
 }
 
+func compileTool(t *ToolRule) error {
+	if t.Decision == nil {
+		return errors.New("missing decision")
+	}
+	if len(t.Tool) == 0 {
+		return errors.New("missing tool")
+	}
+	var err error
+	if t.patterns, err = compilePatterns(t.Tool); err != nil {
+		return err
+	}
+	for _, m := range t.Input {
+		if err := m.compile(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (b *builder) disable(ids []string) error {
 	drop := map[string]bool{}
 	for _, id := range ids {
@@ -195,6 +232,7 @@ func (b *builder) disable(ids []string) error {
 		b.policy.rules[name] = slices.DeleteFunc(rules, func(r *Rule) bool { return drop[r.ID] })
 	}
 	b.policy.anyRules = slices.DeleteFunc(b.policy.anyRules, func(r *Rule) bool { return drop[r.ID] })
+	b.policy.tools = slices.DeleteFunc(b.policy.tools, func(t *ToolRule) bool { return drop[t.ID] })
 	return nil
 }
 
@@ -207,6 +245,7 @@ func (b *builder) settings(s *settingsSchema) error {
 	}
 	assign(&set.Default, s.Default)
 	assign(&set.UnknownCommands, s.UnknownCommands)
+	assign(&set.UnknownTools, s.UnknownTools)
 	assign(&set.Unparsed, s.Unparsed)
 	assign(&set.Dynamic, s.Dynamic)
 	if set.Unparsed == Allow {

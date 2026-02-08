@@ -16,11 +16,13 @@ type fileSchema struct {
 	Settings    settingsSchema          `yaml:"settings"`
 	Commands    map[string]*CommandSpec `yaml:"commands"`
 	Rules       []*Rule                 `yaml:"rules"`
+	Tools       []*ToolRule             `yaml:"tools"`
 }
 
 type settingsSchema struct {
 	Default         *Decision `yaml:"default"`
 	UnknownCommands *Decision `yaml:"unknown_commands"`
+	UnknownTools    *Decision `yaml:"unknown_tools"`
 	Unparsed        *Decision `yaml:"unparsed"`
 	Dynamic         *Decision `yaml:"dynamic"`
 	ConfirmMode     string    `yaml:"confirm_mode"`
@@ -164,6 +166,19 @@ type Rule struct {
 
 	paths [][]pathStep
 	user  bool
+}
+
+// ToolRule matches a named tool call rather than a command line, which is what an
+// MCP server exposes.
+type ToolRule struct {
+	ID       string               `yaml:"id"`
+	Tool     stringList           `yaml:"tool"`
+	Input    map[string]*ArgMatch `yaml:"input"`
+	Decision *Decision            `yaml:"decision"`
+	Reason   string               `yaml:"reason"`
+
+	patterns []pattern
+	user     bool
 }
 
 func decodeStrict(n *yaml.Node, out any) error {

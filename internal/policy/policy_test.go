@@ -43,6 +43,8 @@ func TestParseRejects(t *testing.T) {
 		{"unparsed allow", "version: 1\nsettings: {unparsed: allow}", "cannot be allow"},
 		{"bad confirm mode", "version: 1\nsettings: {confirm_mode: later}", "unknown mode"},
 		{"flag values without flags", "version: 1\nrules:\n- {id: a, command: x, flag_values: [{any: [x]}], decision: deny}", "needs flags"},
+		{"no tool", "version: 1\ntools:\n- {id: a, decision: deny}", "missing tool"},
+		{"tool without decision", "version: 1\ntools:\n- {id: a, tool: x}", "missing decision"},
 		{"bad scalar", "version: 1\nrules:\n- {id: a, command: {x: y}, decision: deny}", "expected a string"},
 	}
 	for _, tt := range tests {
@@ -118,6 +120,40 @@ rules:
 		if rep.Decision != tt.want || rep.Worst().Rule != tt.rule {
 			t.Errorf("%q: got %s by %s, want %s by %s", tt.cmd, rep.Decision, rep.Worst().Rule, tt.want, tt.rule)
 		}
+	}
+}
+
+func TestDisable(t *testing.T) {
+	p := mustParse(t, `version: 1
+presets: [git, rm, mcp]
+disable: [git/force-push, rm/delete, mcp/destructive-tool]
+rules:
+  - id: rm-ok
+    command: rm
+    decision: allow
+`)
+	if got := p.Evaluate("git push --force", Options{}).Decision; got != Confirm {
+		t.Errorf("force push = %s", got)
+	}
+	if got := p.Evaluate("rm x", Options{}).Decision; got != Allow {
+		t.Errorf("rm = %s", got)
+	}
+	if got := p.EvaluateTool("drop_table", nil).Decision; got != Allow {
+		t.Errorf("tool = %s", got)
+	}
+}
+
+func TestDefaults(t *testing.T) {
+	p := loadDefault(t)
+	s := p.Settings
+	if s.Default != Deny || s.UnknownCommands != Allow || s.Unparsed != Deny || s.Dynamic != Deny || s.ConfirmMode != ConfirmAsk {
+		t.Errorf("settings = %+v", s)
+	}
+	if p.Source != "built-in" {
+		t.Errorf("Source = %q", p.Source)
+	}
+	if len(p.Presets) < 9 {
+		t.Errorf("Presets = %q", p.Presets)
 	}
 }
 
@@ -309,6 +345,57 @@ func TestEvaluateArgv(t *testing.T) {
 	for _, tt := range tests {
 		if got := p.EvaluateArgv(tt.argv, Options{}).Decision; got != tt.want {
 			t.Errorf("%q: got %s, want %s", tt.argv, got, tt.want)
+		}
+	}
+}
+
+func TestEvaluateTool(t *testing.T) {
+	p := mustParse(t, `version: 1
+presets: [mcp]
+settings:
+  unknown_tools: confirm
+tools:
+  - {id: read, tool: "search_*", decision: allow}
+  - id: sql
+    tool: mcp__db__query
+    input:
+      sql: {any: ['re:(?i)^\s*select'], none: ['re:(?i)\bdrop\b']}
+    decision: allow
+  - id: required
+    tool: needs_input
+    input:
+      path: {all: ["/safe/*"]}
+    decision: allow
+  - {id: json, tool: rendered, input: {opts: ['*"force":true*']}, decision: deny}
+`)
+	tests := []struct {
+		name  string
+		input map[string]any
+		want  Decision
+		rule  string
+	}{
+		{"search_docs", nil, Allow, "read"},
+		{"mcp__server__search_docs", nil, Allow, "read"},
+		{"delete_record", nil, Deny, "mcp/destructive-tool"},
+		{"mcp__crm__delete_record", nil, Deny, "mcp/destructive-tool"},
+		{"drop_table", nil, Deny, "mcp/destructive-tool"},
+		{"records.delete", nil, Deny, "mcp/destructive-tool"},
+		{"deleteRecord", nil, Deny, "mcp/destructive-tool"},
+		{"modelDelete", nil, Confirm, "seatbelt/unknown-tool"},
+		{"undelete", nil, Confirm, "seatbelt/unknown-tool"},
+		{"update_record", nil, Confirm, "seatbelt/unknown-tool"},
+		{"mcp__db__query", map[string]any{"sql": "select 1"}, Allow, "sql"},
+		{"mcp__db__query", map[string]any{"sql": "select 1; drop table t"}, Confirm, "seatbelt/unknown-tool"},
+		{"mcp__db__query", nil, Confirm, "seatbelt/unknown-tool"},
+		{"needs_input", map[string]any{"path": "/safe/x"}, Allow, "required"},
+		{"needs_input", map[string]any{"path": "/other"}, Confirm, "seatbelt/unknown-tool"},
+		{"rendered", map[string]any{"opts": map[string]any{"force": true}}, Deny, "json"},
+		{"rendered", map[string]any{"opts": map[string]any{"force": false}}, Confirm, "seatbelt/unknown-tool"},
+	}
+	for _, tt := range tests {
+		rep := p.EvaluateTool(tt.name, tt.input)
+		if rep.Decision != tt.want || rep.Worst().Rule != tt.rule {
+			t.Errorf("%s %v: got %s by %s, want %s by %s", tt.name, tt.input, rep.Decision, rep.Worst().Rule, tt.want, tt.rule)
 		}
 	}
 }

@@ -169,3 +169,26 @@ func (m *FlagValueMatch) matches(a *parsedArgs, strict bool) bool {
 	}
 	return len(m.noneP) == 0 || !anyWordMatches(m.noneP, values, !strict)
 }
+
+// matchesInput applies a tool rule's input constraints to a tool call.
+func (t *ToolRule) matchesInput(input map[string]string, strict bool) bool {
+	for key, m := range t.Input {
+		value, ok := input[key]
+		words := []shell.Word{shell.Literal(value)}
+		if !ok {
+			words = nil
+		}
+		if len(m.anyP) > 0 && !anyWordMatches(m.anyP, words, strict) {
+			return false
+		}
+		for _, p := range m.allP {
+			if !anyWordMatches([]pattern{p}, words, strict) {
+				return false
+			}
+		}
+		if len(m.noneP) > 0 && anyWordMatches(m.noneP, words, !strict) {
+			return false
+		}
+	}
+	return true
+}

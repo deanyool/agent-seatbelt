@@ -2,6 +2,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -19,6 +20,7 @@ const (
 type Settings struct {
 	Default         Decision
 	UnknownCommands Decision
+	UnknownTools    Decision
 	Unparsed        Decision
 	Dynamic         Decision
 	ConfirmMode     string
@@ -37,6 +39,7 @@ type Policy struct {
 	aliases      map[string]string
 	rules        map[string][]*Rule
 	anyRules     []*Rule
+	tools        []*ToolRule
 	dangerousEnv []string
 }
 
@@ -304,4 +307,77 @@ func (p *Policy) envFinding(c shell.Command, name string) Finding {
 		Rule:     "seatbelt/env",
 		Reason:   "setting " + name + " can change what a command really runs",
 	}
+}
+
+// EvaluateTool checks a named tool call. A rule's pattern is tried against the
+// full name and against the part after the last __, so the same rule covers
+// mcp__server__drop_table from a hook and drop_table from the proxy.
+func (p *Policy) EvaluateTool(name string, input map[string]any) Report {
+	rep := Report{Input: name}
+	short := name
+	if i := strings.LastIndex(name, "__"); i >= 0 {
+		short = name[i+2:]
+	}
+	flat := flattenInput(input)
+	var deny, user, preset *ToolRule
+	for _, t := range p.tools {
+		strict := *t.Decision != Allow
+		named := false
+		for _, pat := range t.patterns {
+			named = named || pat.match(name) || pat.match(short)
+		}
+		if !named || !t.matchesInput(flat, strict) {
+			continue
+		}
+		switch {
+		case *t.Decision == Deny:
+			if deny == nil {
+				deny = t
+			}
+		case t.user:
+			if user == nil || *t.Decision > *user.Decision {
+				user = t
+			}
+		default:
+			if preset == nil || *t.Decision > *preset.Decision {
+				preset = t
+			}
+		}
+	}
+	best := deny
+	if best == nil {
+		best = user
+	}
+	if best == nil {
+		best = preset
+	}
+	if best == nil {
+		rep.add(Finding{
+			Command:  name,
+			Decision: p.Settings.UnknownTools,
+			Rule:     "seatbelt/unknown-tool",
+			Reason:   "no policy covers tool " + name,
+		})
+		return rep
+	}
+	reason := best.Reason
+	if reason == "" {
+		reason = "matched rule " + best.ID
+	}
+	rep.add(Finding{Command: name, Decision: *best.Decision, Rule: best.ID, Reason: reason})
+	return rep
+}
+
+func flattenInput(input map[string]any) map[string]string {
+	out := make(map[string]string, len(input))
+	for k, v := range input {
+		if s, ok := v.(string); ok {
+			out[k] = s
+			continue
+		}
+		if data, err := json.Marshal(v); err == nil {
+			out[k] = string(data)
+		}
+	}
+	return out
 }

@@ -1,0 +1,7 @@
+name: mcp
+description: Named tool calls. Refuses tools whose name says they destroy something.
+tools:
+  - id: destructive-tool
+    tool: ['re:(?i)(^|[_\-.])(delete|drop|destroy|truncate|purge|wipe|remove|erase)([_\-.A-Z]|$)', 're:(?i)^(delete|drop|destroy|truncate|purge|wipe|remove|erase)']
+    decision: deny
+    reason: this tool's name says it destroys something
