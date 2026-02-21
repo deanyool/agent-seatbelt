@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/deanyool/agent-seatbelt/internal/policy"
 )
@@ -145,6 +146,14 @@ func evaluate(in Input, p *policy.Policy) (string, policy.Report, bool, error) {
 			return "", policy.Report{}, false, errors.New("the Bash tool input has no command")
 		}
 		return *input.Command, p.Evaluate(*input.Command, opts), true, nil
+	case strings.HasPrefix(in.ToolName, "mcp__"):
+		var input map[string]any
+		if len(in.ToolInput) > 0 {
+			if err := json.Unmarshal(in.ToolInput, &input); err != nil {
+				return "", policy.Report{}, false, fmt.Errorf("cannot read the %s tool input: %w", in.ToolName, err)
+			}
+		}
+		return in.ToolName, p.EvaluateTool(in.ToolName, input), true, nil
 	}
 	return "", policy.Report{}, false, nil
 }

@@ -95,6 +95,7 @@ func TestFailuresBlock(t *testing.T) {
 		{"bash without input", `{"tool_name":"Bash"}`},
 		{"bash without command", `{"tool_name":"Bash","tool_input":{}}`},
 		{"bash bad command type", `{"tool_name":"Bash","tool_input":{"command":1}}`},
+		{"mcp bad input", `{"tool_name":"mcp__a__b","tool_input":[]}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,6 +118,38 @@ func TestReadFailureBlocks(t *testing.T) {
 	r := Run(failingReader{}, Options{Policy: defaultPolicy(t)})
 	if r.Code != 2 {
 		t.Errorf("code = %d", r.Code)
+	}
+}
+
+func TestMCPTools(t *testing.T) {
+	p := defaultPolicy(t)
+	tests := []struct {
+		payload string
+		want    string
+	}{
+		{`{"tool_name":"mcp__crm__search","tool_input":{"q":"x"}}`, ""},
+		{`{"tool_name":"mcp__crm__delete_record","tool_input":{"id":1}}`, "deny"},
+		{`{"tool_name":"mcp__crm__delete_record"}`, "deny"},
+	}
+	for _, tt := range tests {
+		r := Run(strings.NewReader(tt.payload), Options{Policy: p})
+		if got, _ := decisionOf(t, r); got != tt.want || r.Code != 0 {
+			t.Errorf("%s: got %q code %d", tt.payload, got, r.Code)
+		}
+	}
+}
+
+func TestOtherToolsAndEventsPass(t *testing.T) {
+	p := defaultPolicy(t)
+	for _, payload := range []string{
+		`{"tool_name":"Read","tool_input":{"file_path":"/etc/passwd"}}`,
+		`{"tool_name":"WebFetch","tool_input":{"url":"https://example.com"}}`,
+		`{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"rm -rf /"}}`,
+	} {
+		r := Run(strings.NewReader(payload), Options{Policy: p})
+		if r.Code != 0 || r.Stdout != "" {
+			t.Errorf("%s: %+v", payload, r)
+		}
 	}
 }
 
