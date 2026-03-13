@@ -189,6 +189,36 @@ func TestShimEndToEnd(t *testing.T) {
 	}
 }
 
+func TestMCPProxyEndToEnd(t *testing.T) {
+	e := newEnv(t)
+	server := filepath.Join(e.home, "server.sh")
+	script := `#!/bin/sh
+while read -r line; do
+  case "$line" in
+    *'"tools/list"'*) printf '%s\n' '{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"search"},{"name":"delete_user"}]}}' ;;
+    *) printf '%s\n' '{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"server ran it"}]}}' ;;
+  esac
+done
+`
+	if err := os.WriteFile(server, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	input := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","arguments":{"q":"x"}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"delete_user","arguments":{"id":1}}}
+`
+	stdout, stderr, code := e.run(t, input, "mcp-proxy", "--server", "crm", "--", server)
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	if strings.Contains(stdout, `"name":"delete_user"`) {
+		t.Errorf("denied tool was listed: %q", stdout)
+	}
+	if !strings.Contains(stdout, "server ran it") || !strings.Contains(stdout, `"isError":true`) {
+		t.Errorf("stdout = %q", stdout)
+	}
+}
+
 func TestPlanApproveNeedsATerminal(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("no /dev/tty")

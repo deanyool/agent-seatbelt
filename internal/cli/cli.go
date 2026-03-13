@@ -40,6 +40,7 @@ Usage:
   seatbelt hook claude-code [--policy FILE]             Claude Code PreToolUse hook
   seatbelt shim install [--dir DIR] NAME...             create PATH shims
   seatbelt shim list [--dir DIR]                        list installed shims
+  seatbelt mcp-proxy [--server NAME] -- ARGV...         guard a stdio MCP server
   seatbelt plan add|list|show|approve|apply|clear       plan-then-commit
   seatbelt log [--decision D] [--grep TEXT] [--since D] search the audit log
   seatbelt preset list|show NAME                        built-in presets
@@ -120,6 +121,8 @@ func (a *App) Main(args []string) int {
 		run = a.hook
 	case "shim":
 		run = a.shim
+	case "mcp-proxy":
+		run = a.mcpProxy
 	case "plan":
 		run = a.plan
 	case "log":

@@ -494,6 +494,50 @@ func TestAuditFailureDoesNotChangeTheDecision(t *testing.T) {
 	}
 }
 
+func TestMCPProxyCommand(t *testing.T) {
+	h := newHarness(t)
+	server := filepath.Join(h.dir, "server.sh")
+	script := `#!/bin/sh
+while read -r line; do
+  printf '{"jsonrpc":"2.0","id":1,"result":{"saw":%s}}\n' "${#line}"
+done
+`
+	if err := os.WriteFile(server, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h.app.Stdin = strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"delete_x"}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search"}}
+`)
+	if code := h.run("mcp-proxy", "--server", "crm", "--", server); code != 0 {
+		t.Fatalf("code = %d, %q", code, h.err)
+	}
+	out := h.out.String()
+	if !strings.Contains(out, "destroys something") || !strings.Contains(out, `"saw"`) {
+		t.Errorf("out = %q", out)
+	}
+	if n := strings.Count(out, "\n"); n != 2 {
+		t.Errorf("lines = %d: %q", n, out)
+	}
+	lines := h.logLines(t)
+	if len(lines) != 2 || !strings.Contains(lines[0], "mcp__crm__delete_x") {
+		t.Errorf("log = %q", lines)
+	}
+}
+
+func TestMCPProxyStartFailure(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("mcp-proxy", "--", filepath.Join(h.dir, "missing")); code != exitFailure {
+		t.Errorf("code = %d", code)
+	}
+}
+
+func TestMCPProxyPassesExitCode(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("mcp-proxy", "--", "/bin/sh", "-c", "exit 5"); code != 5 {
+		t.Errorf("code = %d", code)
+	}
+}
+
 func TestReadLine(t *testing.T) {
 	got, err := readLine(strings.NewReader("abc\ndef"))
 	if err != nil || got != "abc" {
