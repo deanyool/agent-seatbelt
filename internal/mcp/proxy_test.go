@@ -187,6 +187,8 @@ func TestMalformedMessagesStopAtTheProxy(t *testing.T) {
 		{"params array", `{"id":2,"method":"tools/call","params":[]}`, "needs params", "-32600", `"id":2`},
 		{"no name", `{"id":3,"method":"tools/call","params":{}}`, "tool name", "-32600", `"id":3`},
 		{"numeric name", `{"id":4,"method":"tools/call","params":{"name":1}}`, "tool name", "-32600", `"id":4`},
+		{"mixed case method", `{"id":6,"Method":"tools/call","params":{"name":"delete_x"}}`, "mixed-case", "-32600", `"id":6`},
+		{"mixed case name", `{"id":7,"method":"tools/call","params":{"name":"a","Name":"delete_x"}}`, "mixed-case", "-32600", `"id":7`},
 		{"bad arguments", `{"id":5,"method":"tools/call","params":{"name":"a","arguments":[1]}}`, "arguments", "-32600", `"id":5`},
 	}
 	for _, tt := range tests {
@@ -201,6 +203,41 @@ func TestMalformedMessagesStopAtTheProxy(t *testing.T) {
 				t.Errorf("client got %q", got)
 			}
 		})
+	}
+}
+
+func TestDuplicateKeysAreResolvedBeforeForwarding(t *testing.T) {
+	// A parser that keeps the first key would see delete_record. The check and the
+	// forwarded message both use one reading.
+	s := startServer(t, noReply)
+	p := &Proxy{Policy: testPolicy(t, "")}
+	line := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"delete_record","name":"search"}}`
+	run(t, p, s, line+"\n")
+	if len(s.received) != 1 {
+		t.Fatalf("received %q", s.received)
+	}
+	if strings.Contains(s.received[0], "delete_record") {
+		t.Errorf("the unchecked name reached the server: %s", s.received[0])
+	}
+
+	s = startServer(t, noReply)
+	p = &Proxy{Policy: testPolicy(t, "")}
+	line = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search","name":"delete_record"}}`
+	run(t, p, s, line+"\n")
+	if len(s.received) != 0 {
+		t.Errorf("a denied name reached the server: %q", s.received)
+	}
+}
+
+func TestForwardingKeepsLargeNumbers(t *testing.T) {
+	s := startServer(t, noReply)
+	p := &Proxy{Policy: testPolicy(t, "")}
+	run(t, p, s, `{"jsonrpc":"2.0","id":12345678901234567890,"method":"tools/call","params":{"name":"a","arguments":{"n":0.1234567890123456789}}}`+"\n")
+	if len(s.received) != 1 {
+		t.Fatalf("received %q", s.received)
+	}
+	if !strings.Contains(s.received[0], "12345678901234567890") || !strings.Contains(s.received[0], "0.1234567890123456789") {
+		t.Errorf("numbers changed: %s", s.received[0])
 	}
 }
 
@@ -287,6 +324,15 @@ func TestServerLinesPassWhenNotAList(t *testing.T) {
 		if got := p.fromServer([]byte(line)); string(got) != line {
 			t.Errorf("changed %q to %q", line, got)
 		}
+	}
+}
+
+func TestLastLineWithoutNewline(t *testing.T) {
+	s := startServer(t, noReply)
+	p := &Proxy{Policy: testPolicy(t, "")}
+	run(t, p, s, `{"jsonrpc":"2.0","id":1,"method":"ping"}`)
+	if len(s.received) != 1 {
+		t.Errorf("received %q", s.received)
 	}
 }
 

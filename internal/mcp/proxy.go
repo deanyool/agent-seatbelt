@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 
 	"github.com/deanyool/agent-seatbelt/internal/policy"
@@ -132,12 +133,11 @@ func (p *Proxy) fromClient(line []byte, clientOut, serverIn io.Writer) error {
 	if err := decode(trimmed, &msg); err != nil {
 		return p.send(clientOut, errorLine(nil, codeParse, "seatbelt could not parse this message"))
 	}
-	reply, _ := p.inspect(msg)
+	reply, forward := p.inspect(msg)
 	if reply != nil {
 		return p.send(clientOut, reply)
 	}
-	_, err := serverIn.Write(line)
-	return err
+	return writeJSON(serverIn, forward)
 }
 
 // batch handles a JSON-RPC array. Refused calls are answered here and the rest are
@@ -174,6 +174,9 @@ func (p *Proxy) batch(data []byte, clientOut, serverIn io.Writer) error {
 // inspect decides what happens to one client message. It returns either a reply
 // for the client or the message to forward.
 func (p *Proxy) inspect(msg map[string]any) (reply []byte, forward map[string]any) {
+	if mixedCaseKey(msg, "method", "params") {
+		return errorLine(msg["id"], codeInvalid, "seatbelt refuses mixed-case JSON-RPC keys"), nil
+	}
 	method, _ := msg["method"].(string)
 	switch method {
 	case "tools/list":
@@ -195,6 +198,9 @@ func (p *Proxy) toolCall(msg map[string]any) []byte {
 	params, ok := msg["params"].(map[string]any)
 	if !ok {
 		return errorLine(id, codeInvalid, "tools/call needs params")
+	}
+	if mixedCaseKey(params, "name", "arguments") {
+		return errorLine(id, codeInvalid, "seatbelt refuses mixed-case JSON-RPC keys")
 	}
 	name, ok := params["name"].(string)
 	if !ok || name == "" {
@@ -223,6 +229,20 @@ func (p *Proxy) toolCall(msg map[string]any) []byte {
 		return refusal(id, "seatbelt: this tool call needs a person to confirm it: "+rep.Reason())
 	}
 	return refusal(id, "seatbelt: "+rep.Reason())
+}
+
+// mixedCaseKey catches keys like "Method". This proxy reads keys exactly, but a
+// server written in Go matches struct fields without regard to case, and would see
+// a tools/call that was never checked.
+func mixedCaseKey(msg map[string]any, names ...string) bool {
+	for key := range msg {
+		for _, name := range names {
+			if key != name && strings.EqualFold(key, name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (p *Proxy) fullName(tool string) string {
