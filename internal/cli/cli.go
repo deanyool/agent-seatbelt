@@ -38,6 +38,8 @@ Usage:
   seatbelt run [--policy FILE] -- ARGV...               check, then run
   seatbelt run [--policy FILE] -c 'COMMAND'             check, then run through sh
   seatbelt hook claude-code [--policy FILE]             Claude Code PreToolUse hook
+  seatbelt hook print                                   print the settings snippet
+  seatbelt hook install [--project] [--policy FILE]     add the hook to settings.json
   seatbelt shim install [--dir DIR] NAME...             create PATH shims
   seatbelt shim list [--dir DIR]                        list installed shims
   seatbelt mcp-proxy [--server NAME] -- ARGV...         guard a stdio MCP server

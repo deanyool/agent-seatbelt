@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/deanyool/agent-seatbelt/internal/plan"
+	"github.com/deanyool/agent-seatbelt/internal/version"
 )
 
 type harness struct {
@@ -96,6 +97,55 @@ func (h *harness) logLines(t *testing.T) []string {
 		return nil
 	}
 	return strings.Split(strings.TrimSpace(string(data)), "\n")
+}
+
+func TestUsage(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run(); code != exitUsage {
+		t.Errorf("no args: %d", code)
+	}
+	if code := h.run("help"); code != 0 || !strings.Contains(h.out.String(), "Usage:") {
+		t.Errorf("help: %d %q", code, h.out)
+	}
+	if code := h.run("nope"); code != exitUsage || !strings.Contains(h.err.String(), "unknown command") {
+		t.Errorf("unknown: %d %q", code, h.err)
+	}
+	if code := h.run("version"); code != 0 || !strings.Contains(h.out.String(), version.Version) {
+		t.Errorf("version: %d %q", code, h.out)
+	}
+}
+
+func TestSubcommandUsageErrors(t *testing.T) {
+	tests := [][]string{
+		{"check"},
+		{"check", "--nope"},
+		{"run"},
+		{"run", "-c", "ls", "--", "ls"},
+		{"hook"},
+		{"hook", "nope"},
+		{"shim"},
+		{"shim", "install"},
+		{"shim", "nope"},
+		{"plan"},
+		{"plan", "nope"},
+		{"plan", "add"},
+		{"preset"},
+		{"preset", "nope"},
+		{"preset", "show"},
+		{"policy"},
+		{"policy", "nope"},
+		{"mcp-proxy"},
+		{"log", "--decision", "maybe"},
+		{"log", "--since", "soon"},
+	}
+	for _, args := range tests {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			h := newHarness(t)
+			if code := h.run(args...); code != exitUsage {
+				t.Errorf("code = %d, stderr %q", code, h.err)
+			}
+		})
+	}
 }
 
 func TestCheckExitCodes(t *testing.T) {
@@ -397,6 +447,82 @@ func TestHookCommand(t *testing.T) {
 	}
 	if code := h.run("hook", "claude-code", "--nope"); code != 2 {
 		t.Errorf("a bad flag must block: %d", code)
+	}
+}
+
+func TestHookPrint(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("hook", "print", "--policy", "/p.yaml"); code != 0 {
+		t.Fatalf("code = %d", code)
+	}
+	var snippet map[string]any
+	if err := json.Unmarshal(h.out.Bytes(), &snippet); err != nil {
+		t.Fatalf("%v: %s", err, h.out)
+	}
+	if !strings.Contains(h.out.String(), "hook claude-code --policy") || !strings.Contains(h.out.String(), "PreToolUse") {
+		t.Errorf("out = %q", h.out)
+	}
+}
+
+func TestHookInstallKeepsOtherSettings(t *testing.T) {
+	h := newHarness(t)
+	settings := filepath.Join(h.dir, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(settings), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	existing := `{"model":"x","hooks":{"PostToolUse":[{"matcher":"Bash","hooks":[]}],"PreToolUse":[{"matcher":"Read","hooks":[]}]}}`
+	if err := os.WriteFile(settings, []byte(existing), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := h.run("hook", "install"); code != 0 {
+		t.Fatalf("code = %d, %q", code, h.err)
+	}
+	data, err := os.ReadFile(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Model string `json:"model"`
+		Hooks struct {
+			Post []any `json:"PostToolUse"`
+			Pre  []any `json:"PreToolUse"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Model != "x" || len(got.Hooks.Post) != 1 || len(got.Hooks.Pre) != 2 {
+		t.Errorf("settings = %s", data)
+	}
+	if code := h.run("hook", "install"); code != 0 || !strings.Contains(h.out.String(), "already") {
+		t.Errorf("second install: %d %q", code, h.out)
+	}
+	data2, _ := os.ReadFile(settings)
+	if !bytes.Equal(data, data2) {
+		t.Error("second install changed the file")
+	}
+}
+
+func TestHookInstallProjectAndErrors(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("hook", "install", "--project"); code != 0 {
+		t.Fatalf("code = %d, %q", code, h.err)
+	}
+	if _, err := os.Stat(filepath.Join(h.dir, ".claude", "settings.json")); err != nil {
+		t.Error(err)
+	}
+	for _, bad := range []string{"not json", `{"hooks":1}`, `{"hooks":{"PreToolUse":1}}`} {
+		path := filepath.Join(h.dir, "s.json")
+		if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := installHook(path, "x"); err == nil {
+			t.Errorf("%q: want an error", bad)
+		}
+		data, _ := os.ReadFile(path)
+		if string(data) != bad {
+			t.Errorf("%q: file was changed", bad)
+		}
 	}
 }
 
