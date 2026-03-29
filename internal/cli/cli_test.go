@@ -410,6 +410,40 @@ func TestPresetCommands(t *testing.T) {
 	}
 }
 
+func TestPolicyCommands(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("policy", "show"); code != 0 || !strings.Contains(h.out.String(), "built-in") {
+		t.Errorf("show: %d %q", code, h.out)
+	}
+	if code := h.run("policy", "validate"); code != 0 || !strings.Contains(h.out.String(), "valid") {
+		t.Errorf("validate: %d", code)
+	}
+	bad := h.writePolicy(t, "version: 1\nrulez: []\n")
+	if code := h.run("policy", "validate", bad); code != exitFailure {
+		t.Errorf("bad: %d", code)
+	}
+}
+
+func TestInit(t *testing.T) {
+	h := newHarness(t)
+	path := filepath.Join(h.dir, "new", "policy.yaml")
+	if code := h.run("init", "--policy", path); code != 0 {
+		t.Fatalf("init: %d %q", code, h.err)
+	}
+	if code := h.run("policy", "validate", path); code != 0 {
+		t.Errorf("the starter policy doesn't load: %q", h.err)
+	}
+	if code := h.run("init", "--policy", path); code != exitFailure || !strings.Contains(h.err.String(), "exists") {
+		t.Errorf("second init: %d %q", code, h.err)
+	}
+	if code := h.run("init"); code != 0 {
+		t.Errorf("default path: %d %q", code, h.err)
+	}
+	if _, err := os.Stat(filepath.Join(h.dir, ".config", "seatbelt", "policy.yaml")); err != nil {
+		t.Error(err)
+	}
+}
+
 func hookPayload(command string) string {
 	data, _ := json.Marshal(map[string]any{
 		"session_id":      "s1",

@@ -46,6 +46,8 @@ Usage:
   seatbelt plan add|list|show|approve|apply|clear       plan-then-commit
   seatbelt log [--decision D] [--grep TEXT] [--since D] search the audit log
   seatbelt preset list|show NAME                        built-in presets
+  seatbelt policy show|validate [FILE]                  inspect a policy
+  seatbelt init [--policy FILE]                         write a starter policy
   seatbelt version
 
 The policy comes from --policy, then $SEATBELT_POLICY, then ./.seatbelt.yaml, then
@@ -131,6 +133,10 @@ func (a *App) Main(args []string) int {
 		run = a.log
 	case "preset":
 		run = a.preset
+	case "policy":
+		run = a.policyCmd
+	case "init":
+		run = a.init
 	case "version", "--version", "-V":
 		fmt.Fprintf(a.Stdout, "seatbelt %s\n", version.Version)
 		return exitOK
