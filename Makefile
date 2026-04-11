@@ -15,6 +15,8 @@ FUZZTIME ?= 60s
 fuzz:
 	go test ./internal/shell -run '^$$' -fuzz '^FuzzParse$$' -fuzztime $(FUZZTIME)
 	go test ./internal/policy -run '^$$' -fuzz '^FuzzEvaluate$$' -fuzztime $(FUZZTIME)
+	go test ./internal/policy -run '^$$' -fuzz '^FuzzDisguises$$' -fuzztime $(FUZZTIME)
+	go test ./internal/policy -run '^$$' -fuzz '^FuzzGlobalFlags$$' -fuzztime $(FUZZTIME)
 cover:
 	go test -coverprofile=coverage.txt ./internal/...
 	go tool cover -func=coverage.txt | tail -1

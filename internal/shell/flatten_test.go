@@ -47,6 +47,7 @@ func TestFlatten(t *testing.T) {
 		{"ionice", "ionice -c 3 rm x", []string{"rm x"}},
 		{"time", "time rm x", []string{"rm x"}},
 		{"time p", "time -p rm x", []string{"rm x"}},
+		{"time assignment", "time A=1 rm x", []string{"rm x"}},
 		{"path time", "/usr/bin/time -v rm x", []string{"rm x"}},
 		{"timeout", "timeout 5 rm x", []string{"rm x"}},
 		{"timeout flags", "timeout -k 2 -s KILL 5 rm x", []string{"rm x"}},
