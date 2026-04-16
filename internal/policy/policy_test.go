@@ -143,6 +143,36 @@ rules:
 	}
 }
 
+// TestDocumentedException keeps the example in docs/presets.md honest.
+func TestDocumentedException(t *testing.T) {
+	p := mustParse(t, `version: 1
+presets: [rm]
+disable: [rm/delete]
+rules:
+  - id: relative-paths-only
+    command: rm
+    args:
+      none: ["/*", "~*", "*..*"]
+    decision: allow
+`)
+	tests := []struct {
+		cmd  string
+		want Decision
+	}{
+		{"rm -rf build", Allow},
+		{"rm /etc/hosts", Deny},
+		{"rm ../x", Deny},
+		{"rm ~/x", Deny},
+		{`rm "$X"`, Deny},
+		{"rm build /etc/hosts", Deny},
+	}
+	for _, tt := range tests {
+		if got := p.Evaluate(tt.cmd, Options{}).Decision; got != tt.want {
+			t.Errorf("%q: got %s, want %s", tt.cmd, got, tt.want)
+		}
+	}
+}
+
 func TestDefaults(t *testing.T) {
 	p := loadDefault(t)
 	s := p.Settings
