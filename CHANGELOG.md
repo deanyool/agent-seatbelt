@@ -4,6 +4,20 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.0.0] - 2026-04-18
+
+### Added
+- `seatbelt mcp-proxy`, a policy proxy for stdio MCP servers.
+- `seatbelt hook install` and `seatbelt hook print`.
+- `seatbelt init`, `seatbelt policy show` and `seatbelt policy validate`.
+- Tool rules in policies, and the `mcp` preset.
+- The hook checks `mcp__*` tools.
+- `FuzzEvaluate`, `FuzzDisguises` and `FuzzGlobalFlags`.
+- Full documentation in `docs/`.
+
+### Changed
+- First stable policy format. `version: 1` files will keep working.
+
 ## [0.5.0] - 2026-01-31
 
 ### Added
