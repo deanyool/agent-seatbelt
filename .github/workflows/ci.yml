@@ -23,6 +23,8 @@ jobs:
           go-version: ${{ matrix.go }}
       - run: go build ./...
       - run: go test -race ./...
+      - name: compare the parser with this runner's bash
+        run: make soak SOAK=4000
 
   lint:
     runs-on: ubuntu-latest

@@ -12,12 +12,15 @@ of a public issue.
 
 ## Setup
 
+You need Go 1.24 or newer, and bash for the parser comparison tests.
 
 ```sh
 make build     # builds ./seatbelt
 make test      # everything, including the end-to-end tests
+make short     # skips the tests that spawn bash
 make lint      # golangci-lint v2
 make fuzz      # runs each fuzz target for 60s, or set FUZZTIME
+make soak      # compares the parser with your bash on 200k scripts, or set SOAK
 ```
 
 ## Changing the parser
@@ -26,6 +29,9 @@ The parser has one rule: when it isn't sure what the shell will do, it returns a
 error. So adding support for new syntax is a security change, and it needs:
 
 - a row in the table tests in `internal/shell`
+- a script in `knownScripts` in `internal/shell/differential_test.go`, if bash can
+  run it
+- a soak run with `make soak` on your machine
 
 If you find a mismatch with bash, the fix is usually to refuse the input rather
 than to model it.
