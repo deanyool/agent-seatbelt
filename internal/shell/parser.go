@@ -535,8 +535,14 @@ func (p *parser) word() (Word, error) {
 				return b.finish(p.src[start:p.pos]), nil
 			}
 			p.advance()
+			open := p.pos
 			if err := p.substitution(&b, false); err != nil {
 				return Word{}, err
+			}
+			// Bash brace-expands the text of a process substitution as part of the
+			// outer word, even across spaces, so <({rm, x} y) can run rm.
+			if strings.IndexByte(p.src[open:p.pos], '{') >= 0 {
+				return Word{}, p.errf("braces inside a process substitution are not supported")
 			}
 		case '\\':
 			p.pos++
