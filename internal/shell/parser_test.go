@@ -228,6 +228,7 @@ func TestWordFlags(t *testing.T) {
 		{src: `\*`, quoted: true, prefix: "*"},
 		{src: "{a,b}", dynamic: true, split: true, prefix: "{a,b}"},
 		{src: "{1..3}", dynamic: true, split: true, prefix: "{1..3}"},
+		{src: "{a},b}", dynamic: true, split: true, prefix: "{a},b}"},
 		{src: "a{b,c}d", dynamic: true, split: true, prefix: "a{b,c}d"},
 		{src: "{}", prefix: "{}"},
 		{src: "{a}", prefix: "{a}"},

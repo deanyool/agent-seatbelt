@@ -49,10 +49,12 @@ type wordBuilder struct {
 	opened bool // the builder saw any source text at all
 }
 
-// braceState tracks whether unquoted text forms a brace expansion such as
-// {a,b} or {1..3}. A lone { or {} stays literal, which is what the shell does.
+// braceState decides whether unquoted text may be a brace expansion such as
+// {a,b} or {1..3}. It deliberately over-approximates: bash expands odd shapes like
+// {a},b} into "a} b", so any {, then a separator, then } counts. A lone { or {}
+// stays literal, which is what the shell does and what find -exec needs.
 type braceState struct {
-	depth    int
+	open     bool
 	sawSep   bool
 	expanded bool
 	prev     byte
@@ -61,22 +63,13 @@ type braceState struct {
 func (b *braceState) feed(c byte) {
 	switch c {
 	case '{':
-		b.depth++
-	case '}':
-		if b.depth > 0 {
-			if b.sawSep {
-				b.expanded = true
-			}
-			b.depth--
-		}
+		b.open = true
 	case ',':
-		if b.depth > 0 {
-			b.sawSep = true
-		}
+		b.sawSep = b.sawSep || b.open
 	case '.':
-		if b.depth > 0 && b.prev == '.' {
-			b.sawSep = true
-		}
+		b.sawSep = b.sawSep || (b.open && b.prev == '.')
+	case '}':
+		b.expanded = b.expanded || b.sawSep
 	}
 	b.prev = c
 }
