@@ -482,6 +482,13 @@ func (p *parser) redirect(cmd *Command, fd string) error {
 		return p.heredocStart(cmd, fd, op)
 	}
 	p.skipBlanks()
+	// In >&- the dash stands alone, so 2>&-1 closes stderr and passes 1 as an
+	// argument.
+	if (op == ">&" || op == "<&") && p.peek() == '-' {
+		p.advance()
+		cmd.Redirects = append(cmd.Redirects, Redirect{FD: fd, Op: op, Target: Literal("-")})
+		return nil
+	}
 	w, err := p.word()
 	if err != nil {
 		return err

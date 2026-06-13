@@ -120,6 +120,7 @@ func TestParseCommands(t *testing.T) {
 		{"here string subst", "a <<< $(b)", []string{"b", "a"}},
 		{"leading redirect", "> b a", []string{"a"}},
 		{"redirect subst", "a > $(b)", []string{"b", "a"}},
+		{"close fd then argument", "a 2>&-1", []string{"a 1"}},
 
 		{"heredoc", "cat <<EOF\nrm -rf /\nEOF", []string{"cat"}},
 		{"heredoc then command", "cat <<EOF\nhi\nEOF\nb", []string{"cat", "b"}},
