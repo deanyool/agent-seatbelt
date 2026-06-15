@@ -706,6 +706,10 @@ func (p *parser) backtick(b *wordBuilder, quoted bool) error {
 		}
 		if c == '\\' && p.pos+1 < len(p.src) {
 			n := p.src[p.pos+1]
+			if n == '\n' {
+				p.pos += 2
+				continue
+			}
 			if n == '`' || n == '\\' || n == '$' || (quoted && n == '"') {
 				inner.WriteByte(n)
 				p.pos += 2
