@@ -4,6 +4,19 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.1.0] - 2026-07-17
+
+### Added
+- Differential testing against a real bash, in `go test` and `make soak`.
+
+### Fixed
+- Bash brace-expands `{a},b}`, which the parser read as literal text.
+- Bash brace-expands inside `<(...)`, even across spaces. Braces there are now refused.
+- `2>&-1` is two tokens: it closes stderr and passes `1` as an argument.
+- Backticks drop backslash-newlines before parsing.
+- Bash 3.2 strips backslash-newlines from `$(...)` before it looks for comments, so a
+  comment ending in a backslash is now refused.
+
 ## [1.0.0] - 2026-04-18
 
 ### Added
