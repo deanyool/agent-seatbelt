@@ -88,3 +88,40 @@ Expansions meet the matcher in three places, and all resolve toward safety:
 - An allow is a claim about the whole command line, so if an expansion could add a flag
   or an argument, the allow is replaced by the `dynamic` decision. `"$X"` after `-m` or
   after `--` is safe, since it can't become a flag.
+
+## How the parser is tested
+
+The property that matters is that **every command bash actually runs is in the list
+Parse returned, or Parse refused the input.** `internal/shell/differential_test.go`
+checks exactly that against a real bash:
+
+1. Generate a script, mostly valid, sometimes damaged, using only stub commands named
+   `a`, `b` and `c`.
+2. Run it under bash with an empty `PATH` in a temp directory. The stubs record every
+   call they receive.
+3. If Parse accepted the script, require that each recorded call appears in its list,
+   with identical arguments when all words were literal.
+
+The scripts can't name a real program, so this is safe to run at any scale. Several
+real bugs came out of it, each now pinned by a test: brace expansion of `{a},b}`,
+brace expansion across spaces inside `<(...)`, `2>&-1` being two tokens, `$[...]`, and
+two places where bash 3.2 reads `$(...)` as plain text: it removes backslash-newlines
+before it finds comments, and it counts parens straight through here-documents.
+
+On top of that, `FuzzEvaluate` checks that no input can stop a destructive command
+placed in front of it from being denied, and `FuzzDisguises` hides destructive commands
+behind random quoting, wrappers, control flow and nested shells and requires a denial
+every time.
+
+## Cost
+
+Measured on an Apple M5 with Go 1.26, with the built-in policy loaded (all presets):
+
+| Operation | Time |
+| --- | --- |
+| Evaluate `git status` | 9.5 us |
+| Evaluate a three-part chain with a pipe and a substitution | 20 us |
+| Load the built-in policy | 10.5 ms |
+| One `seatbelt hook claude-code` process, start to finish | 17 ms (p50) |
+
+Benchmarks are in `internal/policy/bench_test.go`.

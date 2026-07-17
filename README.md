@@ -197,6 +197,16 @@ The parser in `internal/shell` is built around one rule: when it isn't sure what
 will do, it returns an error, and an error is a denial. Forms it doesn't model, such as
 `case`, function definitions and `${!x}`, are refused rather than guessed at.
 
+The property that matters is that every command the shell really runs is in the list the
+parser returned, and that is tested directly. A differential test generates scripts, runs
+them under a real bash with stub commands that record every call, and fails if bash ran
+anything the parser didn't list. Fuzz targets then hide destructive commands behind random
+quoting, wrappers and control flow, and require a denial every time.
+
+Evaluating a command takes about 10 microseconds. One hook call, including process start
+and loading the policy, takes about 17 ms. Those are measured on an Apple M5, and
+[docs/how-it-works.md](docs/how-it-works.md) has the details.
+
 ## Limitations
 
 Seatbelt decides from the text of a command, and it runs as you. It stops confident
