@@ -136,6 +136,9 @@ func parseAt(src string, depth int) (*Script, error) {
 	if err := p.list(0); err != nil {
 		return nil, err
 	}
+	if p.refused != nil {
+		return nil, p.refused
+	}
 	return &Script{Commands: p.cmds}, nil
 }
 
@@ -145,6 +148,7 @@ type parser struct {
 	depth    int
 	cmds     []Command
 	heredocs []*heredoc
+	refused  error // an error found where returning one directly isn't possible
 }
 
 func (p *parser) errf(format string, args ...any) error {
@@ -181,6 +185,10 @@ func (p *parser) advance() {
 
 // skipBlanks moves past spaces, tabs and a comment. It stops at the newline that
 // ends a comment.
+//
+// A comment ending in a backslash is refused. POSIX says the backslash means
+// nothing there, but bash 3.2 (the macOS /bin/bash) strips backslash-newlines from
+// the text of $(...) first, so the two disagree about where the comment stops.
 func (p *parser) skipBlanks() {
 	for {
 		switch p.peek() {
@@ -189,6 +197,9 @@ func (p *parser) skipBlanks() {
 		case '#':
 			for p.pos < len(p.src) && p.src[p.pos] != '\n' {
 				p.pos++
+			}
+			if p.src[p.pos-1] == '\\' && p.pos < len(p.src) && p.refused == nil {
+				p.refused = p.errf("a comment ending in a backslash is not supported")
 			}
 			return
 		default:

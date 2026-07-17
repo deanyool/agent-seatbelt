@@ -49,6 +49,9 @@ func (p *parser) readHeredocs() error {
 		if err := sub.doubleQuoted(&ignored, 0); err != nil {
 			return err
 		}
+		if sub.refused != nil {
+			return sub.refused
+		}
 		p.cmds = append(p.cmds, sub.cmds...)
 	}
 	return nil

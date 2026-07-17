@@ -192,6 +192,8 @@ func TestParseRejects(t *testing.T) {
 		{"heredoc no body", "cat <<EOF"},
 		{"heredoc dynamic delimiter", "cat <<$x\nhi\n$x"},
 		{"heredoc pending in substitution", "cat <<EOF $(a\n)\nhi\nEOF"},
+		{"comment ending in backslash", "a # b \\\nc"},
+		{"comment continuation in substitution", "x=$(#b\\\nc <<'E'\n$(a)\nE\n)"},
 		{"braces in process substitution", "a <({b, c} d)"},
 		{"word after group", "{ a; } b"},
 		{"word after subshell", "(a) b"},
