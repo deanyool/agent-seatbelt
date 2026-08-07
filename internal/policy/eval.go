@@ -161,6 +161,9 @@ var opaquePrograms = []string{
 // declaringBuiltins take NAME=value arguments.
 var declaringBuiltins = []string{"export", "declare", "typeset", "readonly", "local"}
 
+// fileWriters are checked against protected paths, since they change the files
+// named on their command line.
+var fileWriters = []string{"tee", "cp", "mv", "install", "ln", "sed", "truncate", "chmod", "chown", "touch", "dd", "rsync"}
 
 func (p *Policy) evalCommand(rep *Report, c shell.Command, o Options) {
 	p.checkEnv(rep, c)
@@ -180,6 +183,9 @@ func (p *Policy) evalCommand(rep *Report, c shell.Command, o Options) {
 	}
 	if slices.Contains(declaringBuiltins, name) {
 		p.checkDeclared(rep, c)
+	}
+	if slices.Contains(fileWriters, name) {
+		p.checkWrittenPaths(rep, c, o)
 	}
 	if f := p.evalRules(c, name); f != nil {
 		rep.add(*f)
@@ -334,6 +340,21 @@ func (p *Policy) checkRedirects(rep *Report, c shell.Command, o Options) {
 			continue
 		}
 		if f := p.protectedFinding(c.String(), r.Target.Value, o); f != nil {
+			rep.add(*f)
+		}
+	}
+}
+
+func (p *Policy) checkWrittenPaths(rep *Report, c shell.Command, o Options) {
+	for _, w := range c.Args[1:] {
+		v := w.Value
+		if w.Dynamic || strings.HasPrefix(v, "-") {
+			continue
+		}
+		if after, ok := strings.CutPrefix(v, "of="); ok {
+			v = after
+		}
+		if f := p.protectedFinding(c.String(), v, o); f != nil {
 			rep.add(*f)
 		}
 	}

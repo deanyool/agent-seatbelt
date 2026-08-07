@@ -17,6 +17,7 @@ settings:
   dynamic: deny
   confirm_mode: ask
   audit_log: ~/logs/seatbelt.jsonl
+  protected_paths: [/srv/*, secrets/*]
   dangerous_env: [MY_PLUGIN_PATH]
 
 commands:
@@ -81,8 +82,13 @@ A chain of commands takes the strictest result of its parts.
 | `dynamic` | `deny` | An `allow` that depends on an expansion, such as `git log $X`. |
 | `confirm_mode` | `ask` | `ask` or `plan`. |
 | `audit_log` | `~/.seatbelt/audit.jsonl` | Log location. `$SEATBELT_AUDIT_LOG` also sets it. |
+| `protected_paths` | see below | Extra write targets to refuse. |
 | `dangerous_env` | see below | Extra variable names to refuse. |
 
+`protected_paths` and `dangerous_env` add to the built-in lists. Writes to a
+protected path through a redirect, through `tee`, `cp`, `mv`, `sed`, `dd` and
+similar tools, or through an agent's edit tools are denied. Run
+`seatbelt policy show` to see the settings in effect.
 
 ## rules
 

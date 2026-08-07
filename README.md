@@ -218,8 +218,11 @@ mistakes. It does not stop a determined adversary.
   allowed program, and seatbelt can't see inside them.
 - **Remote commands aren't seen.** `ssh host '...'`, `docker run` and `curl -X DELETE`
   reach things seatbelt knows nothing about.
+- **The agent runs as your user.** Protected paths block the obvious routes to seatbelt's
+  own files, but this isn't a security boundary.
 - **zsh support is best effort.** The parser targets POSIX sh and bash, plus the zsh forms
   that turn up in practice. fish isn't modeled.
+- **`cd` isn't followed**, and symlinks aren't resolved, when checking protected paths.
 - **SQL is matched by pattern, not parsed.** Use a read-only role for anything important.
 
 If you need a real boundary, use one: a container, a read-only database role, a narrowly

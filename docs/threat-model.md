@@ -32,6 +32,10 @@ command. Nothing stops an agent, or a prompt injection steering one, from:
 - **Deleting by other means.** `mv x /dev/null`, `> file`, `tar --remove-files`,
   `git stash` followed by a clean and `cp /dev/null file` all destroy data without
   `rm`. The presets catch common forms, not all forms.
+- **Tampering with seatbelt.** The agent runs as your user, so it can edit the same
+  files you can. Protected paths block the obvious routes, including through edit
+  tools, but a Python one-liner isn't checked. The plan digest catches accidents, not
+  an adversary, because the plan file has no secret behind it.
 
 If you need a boundary, use a real one: a container or VM, a read-only database role,
 an IAM policy, an API token with narrow scopes, a protected branch. Those are enforced
@@ -47,6 +51,9 @@ day-to-day mistakes rarer and easier to see.
 - **Globs are treated as text in arguments.** `git add *` is checked as written, so a
   file named `--force` in the directory could become a flag. Globs in the program
   position are refused.
+- **`cd` isn't followed.** `cd .git/hooks && echo x > pre-commit` isn't recognized as a
+  write to a protected path, because the path is relative to a directory that changed.
+  Symlinks aren't resolved either.
 - **Variables set by other means aren't tracked.** Dangerous environment variables are
   caught in `NAME=value`, `export` and `declare`, but not through `read` or `printf -v`.
 - **Wrappers are a list.** A program that runs other programs and isn't in the list or
