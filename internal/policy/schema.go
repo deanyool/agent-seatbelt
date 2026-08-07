@@ -27,6 +27,7 @@ type settingsSchema struct {
 	Dynamic         *Decision `yaml:"dynamic"`
 	ConfirmMode     string    `yaml:"confirm_mode"`
 	AuditLog        string    `yaml:"audit_log"`
+	ProtectedPaths  []string  `yaml:"protected_paths"`
 	DangerousEnv    []string  `yaml:"dangerous_env"`
 }
 

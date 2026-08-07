@@ -173,6 +173,53 @@ rules:
 	}
 }
 
+func TestSettings(t *testing.T) {
+	p := mustParse(t, `version: 1
+settings:
+  default: confirm
+  unknown_commands: deny
+  unknown_tools: confirm
+  unparsed: confirm
+  dynamic: allow
+  confirm_mode: plan
+  audit_log: /tmp/a.jsonl
+  protected_paths: [/srv/*]
+  dangerous_env: [MY_HOOK]
+rules:
+  - id: a
+    command: tool
+    subcommand: read
+    decision: allow
+`)
+	tests := []struct {
+		cmd  string
+		want Decision
+	}{
+		{"tool other", Confirm},
+		{"nothing", Deny},
+		{"echo 'open", Confirm},
+		{"tool read $X", Allow},
+		{"tool $X", Allow},
+	}
+	for _, tt := range tests {
+		if got := p.Evaluate(tt.cmd, Options{}).Decision; got != tt.want {
+			t.Errorf("%q: got %s, want %s", tt.cmd, got, tt.want)
+		}
+	}
+	if got := p.EvaluateTool("x", nil).Decision; got != Confirm {
+		t.Errorf("unknown tool = %s", got)
+	}
+	if p.Settings.ConfirmMode != ConfirmPlan || p.Settings.AuditLog != "/tmp/a.jsonl" {
+		t.Errorf("settings = %+v", p.Settings)
+	}
+	if got := p.Evaluate("echo x > /srv/y", Options{}).Decision; got != Deny {
+		t.Errorf("protected = %s", got)
+	}
+	if got := p.Evaluate("MY_HOOK=1 true", Options{}).Decision; got != Deny {
+		t.Errorf("env = %s", got)
+	}
+}
+
 func TestDefaults(t *testing.T) {
 	p := loadDefault(t)
 	s := p.Settings
@@ -375,6 +422,18 @@ func TestEvaluateArgv(t *testing.T) {
 	for _, tt := range tests {
 		if got := p.EvaluateArgv(tt.argv, Options{}).Decision; got != tt.want {
 			t.Errorf("%q: got %s, want %s", tt.argv, got, tt.want)
+		}
+	}
+}
+
+func TestEvaluateWrite(t *testing.T) {
+	p := loadDefault(t)
+	if got := p.EvaluateWrite("src/main.go", Options{CWD: "/work"}).Decision; got != Allow {
+		t.Errorf("source file = %s", got)
+	}
+	for _, path := range []string{".git/hooks/pre-commit", "/etc/hosts", "~/.ssh/config", "/work/.seatbelt.yaml"} {
+		if got := p.EvaluateWrite(path, Options{CWD: "/work"}).Decision; got != Deny {
+			t.Errorf("%s = %s", path, got)
 		}
 	}
 }

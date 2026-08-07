@@ -43,6 +43,7 @@ func FuzzEvaluate(f *testing.F) {
 			t.Fatalf("rm on the line before %q gave %s", src, got)
 		}
 		_ = p.EvaluateArgv(strings.Fields(src), Options{})
+		_ = p.EvaluateWrite(src, Options{CWD: "/work"})
 		_ = p.EvaluateTool(src, map[string]any{"q": src})
 	})
 }

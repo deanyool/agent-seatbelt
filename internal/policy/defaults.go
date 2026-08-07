@@ -1,5 +1,30 @@
 package policy
 
+// defaultProtectedPaths are refused as write targets under any policy. They cover
+// the files that control seatbelt itself and a few places where a single write
+// hands over code execution.
+func defaultProtectedPaths() []string {
+	return []string{
+		"~/.config/seatbelt/*",
+		"~/.seatbelt/*",
+		".seatbelt/*",
+		".seatbelt.yaml",
+		"~/.claude/settings*.json",
+		".claude/settings*.json",
+		"~/.ssh/*",
+		"~/.aws/*",
+		"~/.kube/*",
+		"~/.bashrc",
+		"~/.bash_profile",
+		"~/.zshrc",
+		"~/.zshenv",
+		"~/.profile",
+		".git/hooks/*",
+		".git/config",
+		"/etc/*",
+	}
+}
+
 // defaultDangerousEnv lists variables that change what a program executes, so a
 // rule that allowed the program would no longer describe what happens.
 func defaultDangerousEnv() []string {

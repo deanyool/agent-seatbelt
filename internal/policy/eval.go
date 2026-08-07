@@ -4,6 +4,7 @@ package policy
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -25,6 +26,12 @@ type Settings struct {
 	Dynamic         Decision
 	ConfirmMode     string
 	AuditLog        string
+	ProtectedPaths  []string
+}
+
+type protectedPath struct {
+	source string
+	pat    pattern
 }
 
 // Policy is a compiled policy, ready to evaluate commands.
@@ -40,7 +47,9 @@ type Policy struct {
 	rules        map[string][]*Rule
 	anyRules     []*Rule
 	tools        []*ToolRule
+	protected    []protectedPath
 	dangerousEnv []string
+	home         string
 }
 
 // Options carry the context of one evaluation.
@@ -155,6 +164,7 @@ var declaringBuiltins = []string{"export", "declare", "typeset", "readonly", "lo
 
 func (p *Policy) evalCommand(rep *Report, c shell.Command, o Options) {
 	p.checkEnv(rep, c)
+	p.checkRedirects(rep, c, o)
 	if len(c.Args) == 0 {
 		return
 	}
@@ -307,6 +317,67 @@ func (p *Policy) envFinding(c shell.Command, name string) Finding {
 		Rule:     "seatbelt/env",
 		Reason:   "setting " + name + " can change what a command really runs",
 	}
+}
+
+func (p *Policy) checkRedirects(rep *Report, c shell.Command, o Options) {
+	for _, r := range c.Redirects {
+		if !r.Writes() {
+			continue
+		}
+		if r.Target.Dynamic {
+			rep.add(Finding{
+				Command:  c.String(),
+				Decision: p.Settings.Dynamic,
+				Rule:     "seatbelt/dynamic",
+				Reason:   "the redirect target " + r.Target.Raw + " is only known at run time",
+			})
+			continue
+		}
+		if f := p.protectedFinding(c.String(), r.Target.Value, o); f != nil {
+			rep.add(*f)
+		}
+	}
+}
+
+func (p *Policy) protectedFinding(display, path string, o Options) *Finding {
+	resolved := p.resolvePath(path, o.CWD)
+	for _, pp := range p.protected {
+		if pp.pat.match(resolved) {
+			return &Finding{
+				Command:  display,
+				Decision: Deny,
+				Rule:     "seatbelt/protected-path",
+				Reason:   path + " is protected by " + pp.source,
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Policy) resolvePath(path, cwd string) string {
+	switch {
+	case path == "~":
+		path = p.home
+	case strings.HasPrefix(path, "~/"):
+		path = filepath.Join(p.home, path[2:])
+	case !filepath.IsAbs(path):
+		if cwd == "" {
+			cwd = "/"
+		}
+		path = filepath.Join(cwd, path)
+	}
+	return filepath.Clean(path)
+}
+
+// EvaluateWrite checks a direct file edit, as made by an agent's edit tools.
+func (p *Policy) EvaluateWrite(path string, o Options) Report {
+	rep := Report{Input: path}
+	if f := p.protectedFinding(path, path, o); f != nil {
+		rep.add(*f)
+		return rep
+	}
+	rep.add(Finding{Command: path, Decision: Allow, Reason: "not a protected path"})
+	return rep
 }
 
 // EvaluateTool checks a named tool call. A rule's pattern is tried against the

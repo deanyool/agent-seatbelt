@@ -191,6 +191,13 @@ func TestCheckStdinAndJSON(t *testing.T) {
 	}
 }
 
+func TestCheckResolvesPathsAgainstCwdFlag(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run("check", "--cwd", "/etc", "echo x > passwd"); code != exitDeny {
+		t.Errorf("code = %d", code)
+	}
+}
+
 func TestColorOutput(t *testing.T) {
 	h := newHarness(t)
 	h.app.Color = true

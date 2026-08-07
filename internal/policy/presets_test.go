@@ -552,6 +552,31 @@ func TestSeatbeltPreset(t *testing.T) {
 	)
 }
 
+func TestProtectedWrites(t *testing.T) {
+	expect(t, Allow,
+		"echo hi > out.txt",
+		"echo hi >> /tmp/out.txt",
+		"echo hi 2>/dev/null",
+		"make 2>&1",
+		"cp a.txt b.txt",
+	)
+	expect(t, Deny,
+		"echo x >> ~/.ssh/authorized_keys",
+		"echo x > ~/.bashrc",
+		"echo x > .git/hooks/pre-commit",
+		"echo x > /work/.git/hooks/pre-commit",
+		"echo x > sub/.git/hooks/pre-commit",
+		"echo x > .seatbelt.yaml",
+		"echo x > ~/.config/seatbelt/policy.yaml",
+		"echo x > ~/.claude/settings.json",
+		"echo x > .claude/settings.local.json",
+		"echo x > /etc/passwd",
+		"echo x > $TARGET",
+		"echo x > ../../etc/passwd",
+		"echo x > .git/../.git/hooks/pre-push",
+	)
+}
+
 func TestDangerousEnv(t *testing.T) {
 	expect(t, Allow, "FOO=1 ls", "export FOO=1", "NODE_ENV=test npm test")
 	expect(t, Deny,
