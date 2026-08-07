@@ -146,6 +146,22 @@ func evaluate(in Input, p *policy.Policy) (string, policy.Report, bool, error) {
 			return "", policy.Report{}, false, errors.New("the Bash tool input has no command")
 		}
 		return *input.Command, p.Evaluate(*input.Command, opts), true, nil
+	case in.ToolName == "Edit", in.ToolName == "MultiEdit", in.ToolName == "Write", in.ToolName == "NotebookEdit":
+		var input struct {
+			FilePath     string `json:"file_path"`
+			NotebookPath string `json:"notebook_path"`
+		}
+		if err := json.Unmarshal(in.ToolInput, &input); err != nil {
+			return "", policy.Report{}, false, fmt.Errorf("cannot read the %s tool input: %w", in.ToolName, err)
+		}
+		path := input.FilePath
+		if path == "" {
+			path = input.NotebookPath
+		}
+		if path == "" {
+			return "", policy.Report{}, false, fmt.Errorf("the %s tool input has no file path", in.ToolName)
+		}
+		return in.ToolName + " " + path, p.EvaluateWrite(path, opts), true, nil
 	case strings.HasPrefix(in.ToolName, "mcp__"):
 		var input map[string]any
 		if len(in.ToolInput) > 0 {

@@ -20,7 +20,7 @@ Which adds this to `settings.json`, keeping everything else in the file:
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|mcp__.*",
+        "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit|mcp__.*",
         "hooks": [
           { "type": "command", "command": "/path/to/seatbelt hook claude-code" }
         ]
@@ -35,6 +35,7 @@ What the hook does with each tool:
 | Tool | Check |
 | --- | --- |
 | `Bash` | Parses `tool_input.command` and evaluates it. |
+| `Edit`, `MultiEdit`, `Write`, `NotebookEdit` | Checks the file path against the protected paths. |
 | `mcp__*` | Evaluates the tool rules. |
 | anything else | No opinion. |
 

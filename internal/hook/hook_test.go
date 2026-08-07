@@ -95,6 +95,8 @@ func TestFailuresBlock(t *testing.T) {
 		{"bash without input", `{"tool_name":"Bash"}`},
 		{"bash without command", `{"tool_name":"Bash","tool_input":{}}`},
 		{"bash bad command type", `{"tool_name":"Bash","tool_input":{"command":1}}`},
+		{"edit without path", `{"tool_name":"Edit","tool_input":{}}`},
+		{"edit bad input", `{"tool_name":"Write","tool_input":[]}`},
 		{"mcp bad input", `{"tool_name":"mcp__a__b","tool_input":[]}`},
 	}
 	for _, tt := range tests {
@@ -118,6 +120,25 @@ func TestReadFailureBlocks(t *testing.T) {
 	r := Run(failingReader{}, Options{Policy: defaultPolicy(t)})
 	if r.Code != 2 {
 		t.Errorf("code = %d", r.Code)
+	}
+}
+
+func TestEditTools(t *testing.T) {
+	p := defaultPolicy(t)
+	tests := []struct {
+		payload string
+		want    string
+	}{
+		{`{"tool_name":"Edit","cwd":"/w","tool_input":{"file_path":"/w/src/a.go"}}`, ""},
+		{`{"tool_name":"Write","cwd":"/w","tool_input":{"file_path":"/w/.git/hooks/pre-commit","content":"x"}}`, "deny"},
+		{`{"tool_name":"MultiEdit","cwd":"/w","tool_input":{"file_path":".seatbelt.yaml"}}`, "deny"},
+		{`{"tool_name":"NotebookEdit","cwd":"/w","tool_input":{"notebook_path":"/etc/x.ipynb"}}`, "deny"},
+	}
+	for _, tt := range tests {
+		r := Run(strings.NewReader(tt.payload), Options{Policy: p})
+		if got, _ := decisionOf(t, r); got != tt.want || r.Code != 0 {
+			t.Errorf("%s: got %q code %d", tt.payload, got, r.Code)
+		}
 	}
 }
 

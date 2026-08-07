@@ -16,7 +16,7 @@ import (
 )
 
 // hookMatcher is every tool the hook has something to say about.
-const hookMatcher = "Bash|mcp__.*"
+const hookMatcher = "Bash|Edit|MultiEdit|Write|NotebookEdit|mcp__.*"
 
 func auditConfirmed(source, cwd string, rep policy.Report) audit.Entry {
 	w := rep.Worst()
