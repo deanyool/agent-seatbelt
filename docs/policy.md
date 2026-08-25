@@ -44,8 +44,12 @@ tools:
 
 ## Where the policy comes from
 
-In order: `--policy FILE`, `$SEATBELT_POLICY`, `./.seatbelt.yaml`,
-`~/.config/seatbelt/policy.yaml`, then the built-in default, which loads every preset.
+In order: `--policy FILE`, `$SEATBELT_POLICY`, `~/.config/seatbelt/policy.yaml`,
+then the built-in default, which loads every preset.
+
+A file in the current directory is never picked up. The working directory belongs
+to whatever repository the agent is in, and a repository must not get to relax the
+rules applied to it.
 
 ## Decisions
 

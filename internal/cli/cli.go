@@ -50,7 +50,7 @@ Usage:
   seatbelt init [--policy FILE]                         write a starter policy
   seatbelt version
 
-The policy comes from --policy, then $SEATBELT_POLICY, then ./.seatbelt.yaml, then
+The policy comes from --policy, then $SEATBELT_POLICY, then
 ~/.config/seatbelt/policy.yaml, then the built-in default (every preset).
 `
 
@@ -187,16 +187,15 @@ func userPolicyPath() (string, error) {
 	return filepath.Join(home, ".config", "seatbelt", "policy.yaml"), nil
 }
 
-// loadPolicy resolves the policy.
+// loadPolicy resolves the policy. A file in the working directory is deliberately
+// not picked up: the working directory belongs to whatever repository the agent is
+// in, and a repository must not get to relax the rules applied to it.
 func (a *App) loadPolicy(explicit string) (*policy.Policy, error) {
 	if explicit != "" {
 		return policy.Load(explicit)
 	}
 	if v := a.Getenv("SEATBELT_POLICY"); v != "" {
 		return policy.Load(v)
-	}
-	if _, err := os.Stat(".seatbelt.yaml"); err == nil {
-		return policy.Load(".seatbelt.yaml")
 	}
 	path, err := userPolicyPath()
 	if err == nil {

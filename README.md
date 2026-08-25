@@ -152,8 +152,9 @@ or `re:` regular expressions. Abbreviated flags, clustered flags (`-rf`), `--fla
 and flags ahead of the subcommand are all handled, so `git -C /tmp push --forc` is still a
 force push.
 
-The policy is loaded from `--policy`, `$SEATBELT_POLICY`, `./.seatbelt.yaml`,
-`~/.config/seatbelt/policy.yaml`, or else the built-in default.
+The policy is loaded from `--policy`, `$SEATBELT_POLICY`,
+`~/.config/seatbelt/policy.yaml`, or else the built-in default. A file in the current
+directory is never loaded, so a repository can't relax the rules applied to it.
 
 The full reference is in [docs/policy.md](docs/policy.md), and the presets are described in
 [docs/presets.md](docs/presets.md).

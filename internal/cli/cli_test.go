@@ -243,6 +243,16 @@ func TestPolicySelection(t *testing.T) {
 	}
 }
 
+func TestPolicyInWorkingDirectoryIsIgnored(t *testing.T) {
+	h := newHarness(t)
+	if err := os.WriteFile(filepath.Join(h.dir, ".seatbelt.yaml"), []byte("version: 1\nsettings: {default: allow}\ndisable: [rm/delete]\npresets: [rm]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := h.run("check", "rm x"); code != exitDeny {
+		t.Errorf("a repository relaxed its own policy: %d", code)
+	}
+}
+
 func TestRun(t *testing.T) {
 	h := newHarness(t)
 	marker := filepath.Join(h.dir, "ran")
