@@ -5,7 +5,7 @@ All three integrations use the same policy and the same audit log.
 ## Claude Code hook
 
 `seatbelt hook claude-code` implements the
-[PreToolUse hook](https://docs.anthropic.com/en/docs/claude-code/hooks). Install it with:
+[PreToolUse hook](https://code.claude.com/docs/en/hooks). Install it with:
 
 ```sh
 seatbelt hook install             # your user settings

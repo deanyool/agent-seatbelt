@@ -72,7 +72,7 @@ too.
 seatbelt hook install
 ```
 
-This adds a [PreToolUse hook](https://docs.anthropic.com/en/docs/claude-code/hooks) to
+This adds a [PreToolUse hook](https://code.claude.com/docs/en/hooks) to
 `~/.claude/settings.json` and leaves the rest of the file alone. From then on, every Bash
 command, file edit and MCP call goes through seatbelt:
 
