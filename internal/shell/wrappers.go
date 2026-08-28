@@ -46,7 +46,7 @@ var wrappers = map[string]wrapper{
 	"time":       {value: []string{"-o", "--output", "-f", "--format"}, boolean: []string{"-p", "--portability", "-a", "--append", "-v", "--verbose", "-l", "-h"}, assigns: true},
 	"timeout":    {value: []string{"-s", "--signal", "-k", "--kill-after"}, boolean: []string{"-v", "--verbose", "--foreground", "--preserve-status", "-f", "-p"}, operands: 1},
 	"gtimeout":   {value: []string{"-s", "--signal", "-k", "--kill-after"}, boolean: []string{"-v", "--verbose", "--foreground", "--preserve-status"}, operands: 1},
-	"stdbuf": {value: []string{"-i", "--input", "-o", "--output", "-e", "--error"}},
+	"stdbuf":     {value: []string{"-i", "--input", "-o", "--output", "-e", "--error"}},
 	"unbuffer":   {boolean: []string{"-p"}},
 	"caffeinate": {value: []string{"-t", "-w"}, boolean: []string{"-d", "-i", "-m", "-s", "-u"}},
 	"chroot":     {value: []string{"--userspec", "--groups"}, boolean: []string{"--skip-chdir"}, operands: 1},
