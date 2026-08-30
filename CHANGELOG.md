@@ -4,6 +4,20 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.2.0] - 2026-08-30
+
+### Added
+- Protected paths: writes to seatbelt's own files, shell profiles, `~/.ssh`, Git hooks
+  and `/etc` are denied, through redirects, common file tools and agent edit tools.
+- The hook checks `Edit`, `MultiEdit`, `Write` and `NotebookEdit`.
+
+### Changed
+- Bump go.yaml.in/yaml/v3 to v3.0.5.
+
+### Security
+- A policy file in the working directory is no longer loaded. A cloned repository could
+  use one to relax its own rules.
+
 ## [1.1.0] - 2026-07-17
 
 ### Added
