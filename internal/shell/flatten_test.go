@@ -119,6 +119,7 @@ func TestFlattenRejects(t *testing.T) {
 		{"bracket program", "/bin/[r]m x"},
 		{"ansi c program", `$'\x72\x6d' -rf /`},
 		{"zsh equals", "=rm -rf /"},
+		{"zsh word split", "$=x"},
 		{"sudo dynamic", "sudo $x"},
 		{"sudo unknown flag", "sudo --frobnicate rm x"},
 		{"sudo unknown short", "sudo -Z rm x"},

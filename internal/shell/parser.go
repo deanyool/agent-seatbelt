@@ -674,6 +674,9 @@ func (p *parser) dollar(b *wordBuilder, quoted bool) error {
 	case strings.IndexByte("@*#?$!-0123456789", c) >= 0:
 		p.advance()
 		b.expansion(quoted)
+	case c != 0 && strings.IndexByte("=~^+", c) >= 0:
+		// $=x, $~x, $^x and $+x are expansions in zsh and plain text in bash.
+		b.expansion(quoted)
 	default:
 		if quoted {
 			b.lit('$')
@@ -786,7 +789,7 @@ func (p *parser) parameter(b *wordBuilder, quoted bool) error {
 		switch c {
 		case 0:
 			return p.errf("unterminated ${")
-		case '`', '\'', '"', '\\', '[':
+		case '`', '\'', '"', '\\', '[', '(':
 			return p.errf("${...} containing %q is not supported", string(c))
 		case '$':
 			switch p.peek2() {

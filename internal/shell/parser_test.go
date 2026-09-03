@@ -194,6 +194,7 @@ func TestParseRejects(t *testing.T) {
 		{"heredoc pending in substitution", "cat <<EOF $(a\n)\nhi\nEOF"},
 		{"comment ending in backslash", "a # b \\\nc"},
 		{"comment continuation in substitution", "x=$(#b\\\nc <<'E'\n$(a)\nE\n)"},
+		{"zsh param flags", "echo ${(e)x}"},
 		{"braces in process substitution", "a <({b, c} d)"},
 		{"word after group", "{ a; } b"},
 		{"word after subshell", "(a) b"},
@@ -240,6 +241,8 @@ func TestWordFlags(t *testing.T) {
 		{src: `{a\,b}`, quoted: true, prefix: "{a,b}"},
 		{src: "'{a,b}'", quoted: true, prefix: "{a,b}"},
 		{src: "$'a'", dynamic: true, quoted: true},
+		{src: "$=a", dynamic: true, split: true},
+		{src: "$~a", dynamic: true, split: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.src, func(t *testing.T) {
