@@ -382,6 +382,11 @@ func (p *parser) command() error {
 				return p.errf("%q is not supported", w.Value)
 			}
 		}
+		// A bare { after the first word is an argument in bash, but in zsh it can
+		// open a block, as in: if true { cmd }
+		if !first && !w.Quoted && w.Value == "{" {
+			return p.errf("a bare { as an argument is not supported")
+		}
 		if len(cmd.Args) == 0 && assignRe.MatchString(w.Raw) {
 			name, value, _ := strings.Cut(w.Value, "=")
 			_, raw, _ := strings.Cut(w.Raw, "=")

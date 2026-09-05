@@ -195,6 +195,7 @@ func TestParseRejects(t *testing.T) {
 		{"comment ending in backslash", "a # b \\\nc"},
 		{"comment continuation in substitution", "x=$(#b\\\nc <<'E'\n$(a)\nE\n)"},
 		{"zsh param flags", "echo ${(e)x}"},
+		{"zsh block", "if true { a }"},
 		{"braces in process substitution", "a <({b, c} d)"},
 		{"word after group", "{ a; } b"},
 		{"word after subshell", "(a) b"},

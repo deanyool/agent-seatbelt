@@ -57,6 +57,7 @@ func TestFlatten(t *testing.T) {
 		{"caffeinate", "caffeinate -i rm x", []string{"rm x"}},
 		{"chroot", "chroot /mnt rm x", []string{"rm x"}},
 		{"noglob", "noglob rm x", []string{"rm x"}},
+		{"zsh dash", "- rm x", []string{"rm x"}},
 		{"busybox", "busybox rm x", []string{"rm x"}},
 		{"toybox", "toybox rm x", []string{"rm x"}},
 		{"watch", "watch -n 1 'rm x'", []string{"rm x"}},

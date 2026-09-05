@@ -251,6 +251,7 @@ func TestRmPreset(t *testing.T) {
 		"trap 'rm -rf /' EXIT",
 		"f() { rm -rf /; }; f",
 		"case x in *) rm -rf /;; esac",
+		"- rm x",
 	)
 }
 

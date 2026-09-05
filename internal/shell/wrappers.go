@@ -50,6 +50,7 @@ var wrappers = map[string]wrapper{
 	"unbuffer":   {boolean: []string{"-p"}},
 	"caffeinate": {value: []string{"-t", "-w"}, boolean: []string{"-d", "-i", "-m", "-s", "-u"}},
 	"chroot":     {value: []string{"--userspec", "--groups"}, boolean: []string{"--skip-chdir"}, operands: 1},
+	"-":          {},
 	"noglob":     {assigns: true},
 	"nocorrect":  {assigns: true},
 	"busybox":    {},

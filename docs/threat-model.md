@@ -44,8 +44,10 @@ day-to-day mistakes rarer and easier to see.
 
 ## Limits of the parser
 
-- **It targets POSIX sh and bash.** zsh is a much larger language, and only `=cmd`, `noglob` and
-  `nocorrect` are handled. fish isn't modeled at all.
+- **It targets POSIX sh and bash.** zsh is a much larger language. The zsh forms that
+  turn up in practice are handled (`=cmd`, `$=x`, `${(e)x}`, `if x { y }`, the
+  `noglob`, `nocorrect` and `-` modifiers, `repeat`), but coverage is best effort, and
+  fish isn't modeled at all.
 - **Aliases and functions already in the shell are invisible.** If the shell that runs
   the command has `alias ls='something else'` from a profile, seatbelt checks `ls`.
 - **Globs are treated as text in arguments.** `git add *` is checked as written, so a
