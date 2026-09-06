@@ -462,6 +462,7 @@ func (p *parser) forHeader() error {
 // condition consumes the inside of [[ ... ]]. Its operators are not shell
 // operators, but expansions inside it still run, so words are parsed normally.
 func (p *parser) condition() error {
+	arithmetic, dynamic := false, false
 	for {
 		p.skipBlanks()
 		switch c := p.peek(); c {
@@ -486,9 +487,24 @@ func (p *parser) condition() error {
 			return err
 		}
 		if !w.Quoted && w.Value == "]]" {
+			if arithmetic && dynamic {
+				return p.errf("[[ arithmetic on a variable is not supported")
+			}
 			return nil
 		}
+		arithmetic = arithmetic || isArithmeticTest(w.Value)
+		dynamic = dynamic || w.Dynamic
 	}
+}
+
+// isArithmeticTest spots the [[ operators that evaluate their operands as
+// expressions, which runs any $(...) hidden inside a variable's value.
+func isArithmeticTest(s string) bool {
+	switch s {
+	case "-eq", "-ne", "-lt", "-le", "-gt", "-ge":
+		return true
+	}
+	return false
 }
 
 // redirect parses a redirection operator and its target.
@@ -665,6 +681,8 @@ func (p *parser) dollar(b *wordBuilder, quoted bool) error {
 		return p.substitution(b, quoted)
 	case c == '{':
 		return p.parameter(b, quoted)
+	case c == '[':
+		return p.errf("$[...] arithmetic is not supported")
 	case c == '\'' && !quoted:
 		return p.ansiC(b)
 	case c == '"' && !quoted:

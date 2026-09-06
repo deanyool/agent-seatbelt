@@ -346,6 +346,7 @@ var knownScripts = []string{
 	"a \"\\`b\\`\"",
 	"a <(b) >(c)",
 	"a <<< $(b)",
+	"a $(b) \"$[1]\"",
 }
 
 func TestKnownScriptsAgainstBash(t *testing.T) {
