@@ -251,6 +251,11 @@ func TestRmPreset(t *testing.T) {
 		"trap 'rm -rf /' EXIT",
 		"f() { rm -rf /; }; f",
 		"case x in *) rm -rf /;; esac",
+		"let 'a[$(rm -rf /)]=1'",
+		"parallel rm ::: a b",
+		"script -c 'rm -rf /' /dev/null",
+		"tmux new -d 'rm -rf /'",
+		"at now <<< 'rm -rf /'",
 		"- rm x",
 	)
 }

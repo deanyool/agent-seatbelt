@@ -155,7 +155,9 @@ func (p *Policy) unparsed(src string, err error) Finding {
 // opaquePrograms change what later commands mean, or run a command line in a form
 // that isn't unpacked here, so nothing about what they run can be checked.
 var opaquePrograms = []string{
-	"source", ".", "trap", "alias", "enable", "hash", "bind", "repeat", "foreach", "autoload", "zmodload",
+	"source", ".", "trap", "alias", "enable", "hash", "bind", "let", "repeat", "foreach", "autoload", "zmodload",
+	"at", "batch", "crontab", "parallel", "script", "strace", "ltrace", "gdb", "lldb", "valgrind",
+	"expect", "tmux", "screen", "nsenter", "unshare", "systemd-run", "flock",
 }
 
 // declaringBuiltins take NAME=value arguments.
