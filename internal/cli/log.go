@@ -18,7 +18,7 @@ func (a *App) log(args []string) int {
 	decision := flags.String("decision", "", "only this decision: allow, confirm or deny")
 	source := flags.String("source", "", "only this source: hook, shim, mcp, run or plan")
 	grep := flags.String("grep", "", "only entries containing this text")
-	limit := flags.Int("limit", 200, "show at most this many of the newest entries (0 for all)")
+	limit := flags.Int("limit", 50, "show at most this many of the newest entries (0 for all)")
 	asJSON := flags.Bool("json", false, "print JSONL")
 	if code, ok := parseFlags(flags, args); !ok {
 		return code
