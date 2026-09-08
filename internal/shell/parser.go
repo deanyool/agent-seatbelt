@@ -149,6 +149,7 @@ type parser struct {
 	cmds     []Command
 	heredocs []*heredoc
 	refused  error // an error found where returning one directly isn't possible
+	opened   int   // here-documents seen so far
 }
 
 func (p *parser) errf(format string, args ...any) error {
@@ -696,6 +697,11 @@ func (p *parser) dollar(b *wordBuilder, quoted bool) error {
 		b.expansion(quoted)
 	case strings.IndexByte("@*#?$!-0123456789", c) >= 0:
 		p.advance()
+		// $$( is the pid followed by text, but the scan bash does to find the end
+		// of a word sees a $( there. Refuse rather than pick one.
+		if n := p.peek(); c == '$' && (n == '(' || n == '{') {
+			return p.errf("$$ right before %q is not supported", string(n))
+		}
 		b.expansion(quoted)
 	case c != 0 && strings.IndexByte("=~^+", c) >= 0:
 		// $=x, $~x, $^x and $+x are expansions in zsh and plain text in bash.
@@ -719,14 +725,63 @@ func (p *parser) substitution(b *wordBuilder, quoted bool) error {
 	if err := p.enter(); err != nil {
 		return err
 	}
+	p.peek()
+	open, opened := p.pos, p.opened
 	p.advance()
 	err := p.list(')')
 	p.depth--
 	if err != nil {
 		return err
 	}
+	// Bash 3.2 finds the end of $(...) by counting parens, without knowing about
+	// here-documents, so a ) in a body ends the substitution and the rest of the
+	// body runs as commands. Refuse when the two readings disagree. No close at
+	// all is fine: that's a syntax error in 3.2, so nothing runs.
+	if p.opened != opened {
+		if end, ok := countParens(p.src, open); ok && end != p.pos-1 {
+			return p.errf("a here-document inside $(...) has unbalanced parentheses")
+		}
+	}
 	b.expansion(quoted)
 	return nil
+}
+
+// countParens finds the paren closing the one at open the way bash 3.2 does: it
+// tracks quotes and nesting and nothing else.
+func countParens(src string, open int) (int, bool) {
+	depth := 0
+	for i := open; i < len(src); i++ {
+		switch c := src[i]; c {
+		case '\\':
+			i++
+		case '\'', '"', '`':
+			end := closingQuote(src, i+1, c)
+			if end < 0 {
+				return 0, false
+			}
+			i = end
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func closingQuote(src string, from int, q byte) int {
+	for i := from; i < len(src); i++ {
+		switch {
+		case src[i] == q:
+			return i
+		case src[i] == '\\' && q != '\'':
+			i++
+		}
+	}
+	return -1
 }
 
 func (p *parser) backtick(b *wordBuilder, quoted bool) error {

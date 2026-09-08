@@ -19,6 +19,7 @@ func (p *parser) heredocStart(cmd *Command, fd, op string) error {
 	if w.Raw == "" || w.Dynamic {
 		return p.errf("here-document needs a plain delimiter")
 	}
+	p.opened++
 	p.heredocs = append(p.heredocs, &heredoc{
 		delim:     w.Value,
 		quoted:    w.Quoted,
