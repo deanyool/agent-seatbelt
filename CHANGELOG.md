@@ -4,6 +4,23 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.3.0] - 2026-09-07
+
+### Added
+- zsh coverage: `$=x`, `$~x`, `${(e)x}`, `if x { y }`, the `-` precommand modifier, and
+  `repeat`.
+- More programs are refused as opaque: `parallel`, `at`, `script`, `tmux`, `strace` and
+  similar, plus the `let` builtin.
+
+### Fixed
+- `[[ $x -eq 1 ]]` evaluates `$x` as an expression, which can run code, so comparing a
+  variable with an arithmetic operator is now refused.
+- `$[...]`, the old spelling of arithmetic expansion, is refused for the same reason.
+- A `)` in a here-document inside `$(...)` ends the substitution in bash 3.2, and the rest
+  of the body then runs as commands. Bodies with unbalanced parentheses there are refused.
+- `$$(` is refused, because bash reads it one way when finding the end of a word and
+  another when expanding it.
+
 ## [1.2.0] - 2026-08-30
 
 ### Added
