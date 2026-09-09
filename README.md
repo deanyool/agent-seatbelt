@@ -176,6 +176,7 @@ shell can do too.
 
 ## Audit log
 
+Every decision goes to `~/.seatbelt/audit.jsonl`, with common credential shapes masked.
 
 ```text
 $ seatbelt log --decision deny --since 24h

@@ -146,6 +146,8 @@ the first failure, and uses up the approval either way. The `seatbelt` preset de
 ## Audit log
 
 Every decision made by the hook, shims, proxy and `run` is appended to
+`~/.seatbelt/audit.jsonl`, one JSON object per line. Common credential shapes are
+masked before writing.
 
 ```sh
 seatbelt log --decision deny --since 24h

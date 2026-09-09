@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -59,6 +60,8 @@ func (l *Logger) Write(e Entry) error {
 		e.Time = time.Now()
 	}
 	e.Time = e.Time.UTC()
+	e.Command = Redact(e.Command)
+	e.Reason = Redact(e.Reason)
 	data, err := json.Marshal(e)
 	if err != nil {
 		return err
@@ -72,6 +75,26 @@ func (l *Logger) Write(e Entry) error {
 	}
 	_, err = f.Write(append(data, '\n'))
 	return errors.Join(err, f.Close())
+}
+
+var secretPatterns = []struct {
+	re   *regexp.Regexp
+	with string
+}{
+	{regexp.MustCompile(`(?i)\b([A-Z0-9_]*(?:password|passwd|pwd|secret|token|api[_-]?key)[A-Z0-9_]*=)("[^"]*"|'[^']*'|\S+)`), "${1}***"},
+	{regexp.MustCompile(`(?i)(--[a-z0-9-]*(?:password|passwd|secret|token|api-key)[ =])("[^"]*"|'[^']*'|\S+)`), "${1}***"},
+	{regexp.MustCompile(`(?i)(authorization:\s*(?:bearer\s+|basic\s+|token\s+)?)("[^"]*"|'[^']*'|[^\s'"]+)`), "${1}***"},
+	{regexp.MustCompile(`(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]+`), "${1}***"},
+	{regexp.MustCompile(`(://[^/\s:@]+:)[^/\s@]+@`), "${1}***@"},
+	{regexp.MustCompile(`(?i)\b((?:mysql|mariadb)\b[^|;&]*\s-p)\S+`), "${1}***"},
+}
+
+// Redact masks the common ways a credential ends up on a command line.
+func Redact(s string) string {
+	for _, p := range secretPatterns {
+		s = p.re.ReplaceAllString(s, p.with)
+	}
+	return s
 }
 
 // Query selects entries from a log. Zero fields match everything.

@@ -120,6 +120,51 @@ func TestConcurrentWritesStayWhole(t *testing.T) {
 	}
 }
 
+func TestWriteDefaultsTimeAndRedacts(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.jsonl")
+	l := &Logger{Path: path}
+	if err := l.Write(Entry{Command: "curl -H 'Authorization: Bearer abc123' x"}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "abc123") {
+		t.Errorf("secret reached the log: %s", data)
+	}
+	var e Entry
+	if err := json.Unmarshal(data, &e); err != nil {
+		t.Fatal(err)
+	}
+	if e.Time.IsZero() {
+		t.Error("time not set")
+	}
+}
+
+func TestRedact(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"PGPASSWORD=hunter2 psql", "PGPASSWORD=*** psql"},
+		{"API_KEY='a b' run", "API_KEY=*** run"},
+		{"GITHUB_TOKEN=abc gh pr list", "GITHUB_TOKEN=*** gh pr list"},
+		{"tool --password hunter2 x", "tool --password *** x"},
+		{"tool --api-key=abc", "tool --api-key=***"},
+		{"tool --db-password \"a b\" x", "tool --db-password *** x"},
+		{"curl -H 'Authorization: Bearer abc' x", "curl -H 'Authorization: Bearer ***' x"},
+		{"curl -H \"authorization: token abc\" x", "curl -H \"authorization: token ***\" x"},
+		{"x bearer abc.def", "x bearer ***"},
+		{"git clone https://me:hunter2@example.com/r", "git clone https://me:***@example.com/r"},
+		{"mysql -u root -phunter2 db", "mysql -u root -p*** db"},
+		{"git status", "git status"},
+		{"grep -p foo", "grep -p foo"},
+	}
+	for _, tt := range tests {
+		if got := Redact(tt.in); got != tt.want {
+			t.Errorf("Redact(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 func TestDefaultPath(t *testing.T) {
 	env := func(string) string { return "" }
 	if got, _ := DefaultPath("/a/b", env); got != "/a/b" {
