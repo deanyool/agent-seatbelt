@@ -60,6 +60,9 @@ type Verdict struct {
 // Options configure the hook.
 type Options struct {
 	Policy *policy.Policy
+	// AutoApprove prints an allow decision instead of staying silent. An allow
+	// skips Claude Code's own permission prompt, so it is opt-in.
+	AutoApprove bool
 	// Observe is called with each verdict, for the audit log.
 	Observe func(Verdict)
 	// Queue handles a confirm decision when the policy says to plan. It returns
@@ -104,6 +107,9 @@ func Run(stdin io.Reader, o Options) Result {
 	}
 	switch rep.Decision {
 	case policy.Allow:
+		if o.AutoApprove {
+			return decide("allow", rep.Reason())
+		}
 		return Result{}
 	case policy.Confirm:
 		if o.Policy.Settings.ConfirmMode == policy.ConfirmPlan && o.Queue != nil {

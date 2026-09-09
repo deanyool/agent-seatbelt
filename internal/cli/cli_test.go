@@ -414,6 +414,71 @@ func TestPlanClear(t *testing.T) {
 	}
 }
 
+func TestLog(t *testing.T) {
+	h := newHarness(t)
+	h.run("run", "--", "true")
+	h.run("run", "--", "rm", "x")
+	if code := h.run("log"); code != 0 {
+		t.Fatalf("log: %d", code)
+	}
+	if out := h.out.String(); !strings.Contains(out, "DENY") || !strings.Contains(out, "[rm/delete]") {
+		t.Errorf("log = %q", out)
+	}
+	h.run("log", "--decision", "deny")
+	if strings.Contains(h.out.String(), "true") {
+		t.Errorf("filter leaked: %q", h.out)
+	}
+	h.run("log", "--grep", "true", "--source", "run", "--rule", "seatbelt")
+	if !strings.Contains(h.out.String(), "true") {
+		t.Errorf("grep: %q", h.out)
+	}
+	h.run("log", "--json", "--limit", "1")
+	var e map[string]any
+	if err := json.Unmarshal(h.out.Bytes(), &e); err != nil || e["command"] != "rm x" {
+		t.Errorf("json: %v %q", err, h.out)
+	}
+	if code := h.run("log", "--since", "24h"); code != 0 {
+		t.Errorf("since: %d", code)
+	}
+	if code := h.run("log", "--file", filepath.Join(h.dir, "none.jsonl")); code != 0 || !strings.Contains(h.err.String(), "no audit log") {
+		t.Errorf("missing: %d %q", code, h.err)
+	}
+	damaged := filepath.Join(h.dir, "d.jsonl")
+	if err := os.WriteFile(damaged, []byte("nope\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := h.run("log", "--file", damaged); code != 0 || !strings.Contains(h.err.String(), "damaged") {
+		t.Errorf("damaged: %d %q", code, h.err)
+	}
+}
+
+func TestParseSince(t *testing.T) {
+	now := time.Date(2026, 3, 10, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		in   string
+		want time.Time
+	}{
+		{"30s", now.Add(-30 * time.Second)},
+		{"5m", now.Add(-5 * time.Minute)},
+		{"2h", now.Add(-2 * time.Hour)},
+		{"3d", now.Add(-72 * time.Hour)},
+		{"1w", now.Add(-168 * time.Hour)},
+		{"2026-03-01T00:00:00Z", time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+	}
+	for _, tt := range tests {
+		got, err := parseSince(tt.in, now)
+		if err != nil || !got.Equal(tt.want) {
+			t.Errorf("%q: %v %v", tt.in, got, err)
+		}
+	}
+	if _, err := parseSince("2026-03-01", now); err != nil {
+		t.Error(err)
+	}
+	if _, err := parseSince("yesterday", now); err == nil {
+		t.Error("want an error")
+	}
+}
+
 func TestPresetCommands(t *testing.T) {
 	h := newHarness(t)
 	if code := h.run("preset", "list"); code != 0 || !strings.Contains(h.out.String(), "kubectl") {
@@ -498,6 +563,28 @@ func TestHookCommand(t *testing.T) {
 	}
 	if code := h.run("hook", "claude-code", "--nope"); code != 2 {
 		t.Errorf("a bad flag must block: %d", code)
+	}
+}
+
+func TestHookAutoApproveAndPlan(t *testing.T) {
+	h := newHarness(t)
+	h.app.Stdin = strings.NewReader(hookPayload("git status"))
+	h.run("hook", "claude-code", "--auto-approve")
+	if !strings.Contains(h.out.String(), `"permissionDecision":"allow"`) {
+		t.Errorf("out = %q", h.out)
+	}
+	path := h.writePolicy(t, "version: 1\npresets: [git]\nsettings: {confirm_mode: plan}\n")
+	h.app.Stdin = strings.NewReader(hookPayload("git push"))
+	h.run("hook", "claude-code", "--policy", path)
+	if !strings.Contains(h.out.String(), `"permissionDecision":"deny"`) || !strings.Contains(h.out.String(), "queued as") {
+		t.Errorf("out = %q", h.out)
+	}
+	p, err := plan.Load(h.env["SEATBELT_PLAN"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Pending()) != 1 || p.Pending()[0].CWD != "/w" {
+		t.Errorf("plan = %+v", p)
 	}
 }
 

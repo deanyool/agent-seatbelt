@@ -82,6 +82,13 @@ func TestBashDecisions(t *testing.T) {
 	}
 }
 
+func TestAutoApprove(t *testing.T) {
+	r := Run(strings.NewReader(bashPayload("git status")), Options{Policy: defaultPolicy(t), AutoApprove: true})
+	if got, _ := decisionOf(t, r); got != "allow" {
+		t.Errorf("got %q", got)
+	}
+}
+
 func TestFailuresBlock(t *testing.T) {
 	p := defaultPolicy(t)
 	tests := []struct {

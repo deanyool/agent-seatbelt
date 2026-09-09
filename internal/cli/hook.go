@@ -50,6 +50,7 @@ func (a *App) hook(args []string) int {
 func (a *App) hookRun(args []string) int {
 	flags := a.flags("hook claude-code")
 	policyPath := flags.String("policy", "", "policy file")
+	autoApprove := flags.Bool("auto-approve", false, "answer allow instead of deferring to the normal permission flow")
 	if _, ok := parseFlags(flags, args); !ok {
 		return exitUsage
 	}
@@ -60,6 +61,7 @@ func (a *App) hookRun(args []string) int {
 	}
 	result := hook.Run(a.Stdin, hook.Options{
 		Policy:      p,
+		AutoApprove: *autoApprove,
 		Observe: func(v hook.Verdict) {
 			a.recordReport(p, "hook", v.Input.CWD, v.Input.SessionID, v.Report)
 		},
