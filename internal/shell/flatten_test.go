@@ -182,6 +182,9 @@ func TestFlattenMarksWrappers(t *testing.T) {
 	if len(rm.Assigns) != 1 || rm.Assigns[0].Name != "FOO" {
 		t.Errorf("Assigns = %+v", rm.Assigns)
 	}
+	if got := rm.String(); got != "FOO=1 rm x" {
+		t.Errorf("String() = %q", got)
+	}
 }
 
 func TestFlattenKeepsEnvAndRedirects(t *testing.T) {

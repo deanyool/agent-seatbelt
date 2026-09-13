@@ -232,7 +232,7 @@ func (p *Policy) evalRules(c shell.Command, name string) *Finding {
 	if best := strongest(hit); best != nil {
 		f := &Finding{Command: display, Decision: *best.Decision, Rule: best.ID, Reason: best.Reason}
 		if f.Reason == "" {
-			f.Reason = "matched rule " + best.ID
+			f.Reason = "matched this rule"
 		}
 		// An allow is a claim about the whole command line. If an expansion could
 		// add a flag or an argument, the rule hasn't really seen the command.
@@ -456,7 +456,7 @@ func (p *Policy) EvaluateTool(name string, input map[string]any) Report {
 	}
 	reason := best.Reason
 	if reason == "" {
-		reason = "matched rule " + best.ID
+		reason = "matched this rule"
 	}
 	rep.add(Finding{Command: name, Decision: *best.Decision, Rule: best.ID, Reason: reason})
 	return rep

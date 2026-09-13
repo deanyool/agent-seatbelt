@@ -812,3 +812,13 @@ func TestReadLine(t *testing.T) {
 		t.Errorf("%q %v", got, err)
 	}
 }
+
+func TestHookCommandQuoting(t *testing.T) {
+	if got := hookCommand("/usr/bin/seatbelt", ""); got != "/usr/bin/seatbelt hook claude-code" {
+		t.Errorf("got %q", got)
+	}
+	got := hookCommand("/a b/seatbelt", "/it's/p.yaml")
+	if want := `'/a b/seatbelt' hook claude-code --policy '/it'\''s/p.yaml'`; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

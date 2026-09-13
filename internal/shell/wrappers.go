@@ -122,8 +122,9 @@ scan:
 			i += consumed
 		case w.assigns && assignRe.MatchString(v):
 			flag, val, _ := strings.Cut(v, "=")
+			_, raw, _ := strings.Cut(a.Raw, "=")
 			word := a
-			word.Value = val
+			word.Value, word.Raw = val, raw
 			next.Assigns = append(append([]Assign(nil), next.Assigns...), Assign{Name: flag, Value: word})
 			i++
 		case operands > 0:

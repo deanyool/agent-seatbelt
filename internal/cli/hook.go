@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
+	"regexp"
 	"strings"
 
 	"github.com/deanyool/agent-seatbelt/internal/audit"
@@ -77,11 +77,20 @@ func (a *App) hookRun(args []string) int {
 // hookCommand builds the command line for settings.json. Paths are quoted for the
 // shell, since Claude Code runs the command through one.
 func hookCommand(self, policyPath string) string {
-	command := strconv.Quote(self) + " hook claude-code"
+	command := shellQuote(self) + " hook claude-code"
 	if policyPath != "" {
-		command += " --policy " + strconv.Quote(policyPath)
+		command += " --policy " + shellQuote(policyPath)
 	}
 	return command
+}
+
+var shellSafe = regexp.MustCompile(`^[A-Za-z0-9_./~+-]+$`)
+
+func shellQuote(s string) string {
+	if shellSafe.MatchString(s) {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func hookGroup(command string) map[string]any {
