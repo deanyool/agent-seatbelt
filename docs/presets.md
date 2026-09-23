@@ -1,6 +1,6 @@
 # Presets
 
-Presets are ordinary policy files embeded in the binary. Read one with
+Presets are ordinary policy files embedded in the binary. Read one with
 `seatbelt preset show NAME`. They all follow the same shape: reading is allowed, writing
 confirms, deleting is denied, and anything in the program's territory that no rule
 mentions gets `settings.default`, which is deny.
