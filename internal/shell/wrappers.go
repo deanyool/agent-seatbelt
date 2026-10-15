@@ -7,7 +7,8 @@ import (
 
 // wrapper describes a program whose job is to run another program. Any flag not
 // listed here is an error: an unknown flag might take a value, and then the word
-// after it isn't the command at all.
+// after it isn't the command at all. A long flag whose value is optional, such as
+// xargs --replace, belongs in boolean, because its value is only ever attached.
 type wrapper struct {
 	value   []string // flags that take a value
 	boolean []string // flags that don't
@@ -56,7 +57,7 @@ var wrappers = map[string]wrapper{
 	"busybox":    {},
 	"toybox":     {},
 	"watch":      {value: []string{"-n", "--interval", "-d", "--differences"}, boolean: []string{"-t", "--no-title", "-b", "--beep", "-e", "--errexit", "-g", "--chgexit", "-p", "--precise", "-c", "--color"}, joined: true},
-	"xargs":      {value: []string{"-I", "--replace", "-E", "--eof", "-L", "--max-lines", "-n", "--max-args", "-P", "--max-procs", "-s", "--max-chars", "-d", "--delimiter", "-a", "--arg-file", "-J", "-R", "-S"}, boolean: []string{"-0", "--null", "-r", "--no-run-if-empty", "-t", "--verbose", "-p", "--interactive", "-o", "--open-tty", "-x", "--exit"}, trailing: true},
+	"xargs":      {value: []string{"-I", "-E", "-L", "-n", "--max-args", "-P", "--max-procs", "-s", "--max-chars", "-d", "--delimiter", "-a", "--arg-file", "-J", "-R", "-S"}, boolean: []string{"-0", "--null", "-r", "--no-run-if-empty", "-t", "--verbose", "-p", "--interactive", "-o", "--open-tty", "-x", "--exit", "--replace", "--eof", "--max-lines"}, trailing: true},
 }
 
 func (w wrapper) unwrap(c Command, depth int) ([]Command, error) {
@@ -75,7 +76,7 @@ scan:
 		v := a.Value
 		switch {
 		case v == "--":
-			i++
+			i += 1 + operands
 			break scan
 		case v == "-" && contains(w.boolean, "-"):
 			i++

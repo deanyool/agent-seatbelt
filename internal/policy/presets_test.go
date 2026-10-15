@@ -256,6 +256,8 @@ func TestRmPreset(t *testing.T) {
 		"script -c 'rm -rf /' /dev/null",
 		"tmux new -d 'rm -rf /'",
 		"at now <<< 'rm -rf /'",
+		"timeout -- 5 rm x",
+		"ls | xargs --replace rm {}",
 		"- rm x",
 		"x=$(cat <<'E'\n)\nrm -rf /\nE\n)",
 	)
