@@ -34,6 +34,7 @@ type fakeTTY struct {
 func (f *fakeTTY) Read(p []byte) (int, error)  { return f.in.Read(p) }
 func (f *fakeTTY) Write(p []byte) (int, error) { return f.out.Write(p) }
 func (f *fakeTTY) Close() error                { return nil }
+
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	dir := t.TempDir()
