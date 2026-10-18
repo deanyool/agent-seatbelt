@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -273,18 +272,4 @@ func (b *builder) settings(s *settingsSchema) error {
 	set.ProtectedPaths = paths
 	b.policy.dangerousEnv = append(defaultDangerousEnv(), s.DangerousEnv...)
 	return nil
-}
-
-// expandPathPattern resolves ~ and makes a relative pattern match at any depth, so
-// .git/hooks/* covers every repository.
-func expandPathPattern(s, home string) string {
-	switch {
-	case s == "~":
-		return home
-	case strings.HasPrefix(s, "~/"):
-		return filepath.Join(home, s[2:])
-	case strings.HasPrefix(s, "re:"), strings.HasPrefix(s, "/"):
-		return s
-	}
-	return "*/" + s
 }

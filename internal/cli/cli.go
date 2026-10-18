@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/deanyool/agent-seatbelt/internal/audit"
@@ -84,8 +83,8 @@ func New() *App {
 		Environ:    os.Environ,
 		Getwd:      os.Getwd,
 		Now:        time.Now,
-		OpenTTY:    func() (io.ReadWriteCloser, error) { return os.OpenFile("/dev/tty", os.O_RDWR, 0) },
-		Exec:       syscall.Exec,
+		OpenTTY:    openTTY,
+		Exec:       execProcess,
 		Executable: executable,
 		Color:      os.Getenv("NO_COLOR") == "" && isTerminal(os.Stdout),
 	}

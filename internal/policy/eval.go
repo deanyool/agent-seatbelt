@@ -4,7 +4,6 @@ package policy
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -375,21 +374,6 @@ func (p *Policy) protectedFinding(display, path string, o Options) *Finding {
 		}
 	}
 	return nil
-}
-
-func (p *Policy) resolvePath(path, cwd string) string {
-	switch {
-	case path == "~":
-		path = p.home
-	case strings.HasPrefix(path, "~/"):
-		path = filepath.Join(p.home, path[2:])
-	case !filepath.IsAbs(path):
-		if cwd == "" {
-			cwd = "/"
-		}
-		path = filepath.Join(cwd, path)
-	}
-	return filepath.Clean(path)
 }
 
 // EvaluateWrite checks a direct file edit, as made by an agent's edit tools.

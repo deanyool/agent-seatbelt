@@ -112,7 +112,11 @@ func (a *App) run(args []string) int {
 	var rep policy.Report
 	if *shellCmd != "" {
 		rep = p.Evaluate(*shellCmd, o)
-		argv = []string{"/bin/sh", "-c", *shellCmd}
+		sh, err := shellPath()
+		if err != nil {
+			return a.fail(err)
+		}
+		argv = []string{sh, "-c", *shellCmd}
 	} else {
 		rep = p.EvaluateArgv(argv, o)
 	}

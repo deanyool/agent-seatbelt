@@ -159,7 +159,11 @@ func (a *App) planApply(path string, args []string) int {
 	}
 	run := func(e plan.Entry) error {
 		fmt.Fprintf(a.Stdout, "+ %s\n", e.Command)
-		code := a.spawnIn(e.CWD, []string{"/bin/sh", "-c", e.Command})
+		sh, err := shellPath()
+		if err != nil {
+			return err
+		}
+		code := a.spawnIn(e.CWD, []string{sh, "-c", e.Command})
 		a.record(p, audit.Entry{
 			Source:   "plan",
 			Command:  e.Command,

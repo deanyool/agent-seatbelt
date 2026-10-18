@@ -822,4 +822,23 @@ func TestHookCommandQuoting(t *testing.T) {
 	if want := `'/a b/seatbelt' hook claude-code --policy '/it'\''s/p.yaml'`; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
+	// Claude Code runs hooks through Git Bash on Windows, where a bare backslash
+	// would be eaten.
+	got = hookCommand(`C:\Users\dev\bin\seatbelt.exe`, "")
+	if want := `'C:\Users\dev\bin\seatbelt.exe' hook claude-code`; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestShellPath(t *testing.T) {
+	sh, err := shellPath()
+	if err != nil {
+		t.Skipf("no sh here: %v", err)
+	}
+	if !filepath.IsAbs(sh) {
+		t.Errorf("shellPath() = %q, want an absolute path", sh)
+	}
+	if _, err := os.Stat(sh); err != nil {
+		t.Error(err)
+	}
 }

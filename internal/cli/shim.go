@@ -13,6 +13,9 @@ func (a *App) shim(args []string) int {
 	if len(args) == 0 {
 		return a.usageError("shim needs a subcommand: install or list")
 	}
+	if !shimsSupported {
+		return a.fail(errNoShims)
+	}
 	flags := a.flags("shim " + args[0])
 	dir := flags.String("dir", "", "shim directory (default ~/.seatbelt/shims)")
 	if code, ok := parseFlags(flags, args[1:]); !ok {
@@ -53,9 +56,14 @@ func (a *App) shim(args []string) int {
 	return a.usageError("unknown shim subcommand %q", args[0])
 }
 
+var errNoShims = errors.New("shims are not supported on Windows; use the Claude Code hook or the MCP proxy")
+
 // shimMain runs when seatbelt was started under another program's name. The real
 // program's exit status and streams stay intact because this process becomes it.
 func (a *App) shimMain(name string, args []string) int {
+	if !shimsSupported {
+		return a.blockShim(name, errNoShims)
+	}
 	self, err := a.Executable()
 	if err != nil {
 		return a.blockShim(name, err)
