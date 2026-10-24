@@ -59,7 +59,9 @@ milliseconds, so this needs something like a hung disk, but it is worth knowing.
 
 ## Shell shims
 
-Shims catch commands from anything that uses `PATH`, not only from one agent.
+Shims catch commands from anything that uses `PATH`, not only from one agent. They
+need a process to replace itself with the real program, which Windows can't do, so
+`seatbelt shim` refuses to run there.
 
 ```sh
 seatbelt shim install git kubectl terraform

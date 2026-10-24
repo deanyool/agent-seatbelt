@@ -31,11 +31,15 @@ against](#limitations) before relying on it.
 
 ## Quick start
 
-You need Go 1.24 or newer.
+With Go 1.24 or newer:
 
 ```sh
 go install github.com/deanyool/agent-seatbelt/cmd/seatbelt@latest
 ```
+
+Or download a prebuilt binary for macOS, Linux or Windows (amd64 and arm64) from the
+[Releases page](https://github.com/deanyool/agent-seatbelt/releases), check it against
+`SHA256SUMS`, and put `seatbelt` somewhere on your `PATH`.
 
 It works with no configuration. The built-in policy loads every preset:
 
@@ -73,8 +77,10 @@ seatbelt hook install
 ```
 
 This adds a [PreToolUse hook](https://code.claude.com/docs/en/hooks) to
-`~/.claude/settings.json` and leaves the rest of the file alone. From then on, every Bash
-command, file edit and MCP call goes through seatbelt:
+`~/.claude/settings.json` and leaves the rest of the file alone. Use
+`seatbelt hook install --project` to write `.claude/settings.json` in the current
+directory instead. Start a new Claude Code session afterwards, and `/hooks` lists it.
+From then on, every Bash command, file edit and MCP call goes through seatbelt:
 
 ```text
 $ echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git push --force origin main"}}' \
@@ -83,7 +89,8 @@ $ echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"comman
 ```
 
 The model sees the reason and can change course. Allowed commands produce no output, so
-Claude Code's own permissions keep working as before.
+Claude Code's own permissions keep working as before. The hook names seatbelt by its
+full path, so if you move the binary, update the path in `settings.json`.
 
 ### Protect anything else
 
@@ -224,6 +231,9 @@ mistakes. It does not stop a determined adversary.
   own files, but this isn't a security boundary.
 - **zsh support is best effort.** The parser targets POSIX sh and bash, plus the zsh forms
   that turn up in practice. fish isn't modeled.
+- **On Windows, shims aren't available.** The hook, `check`, `run`, `plan` and the MCP
+  proxy are, and commands are read the way Git Bash, which Claude Code uses there, would
+  run them. `run -c` and `plan apply` need `sh` on `PATH`.
 - **`cd` isn't followed**, and symlinks aren't resolved, when checking protected paths.
 - **SQL is matched by pattern, not parsed.** Use a read-only role for anything important.
 
