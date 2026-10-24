@@ -4,6 +4,22 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.5.0] - 2026-10-24
+
+### Added
+- Windows builds for amd64 and arm64, as zip archives. The hook, `check`, `run`,
+  `plan` and the MCP proxy work there; `run -c` and `plan apply` use `sh` from `PATH`,
+  and prompts read the console.
+- Release archives come with a `SHA256SUMS` file.
+- `SECURITY.md`, and issue and pull request templates.
+- CI cross-builds and vets every release target.
+
+### Changed
+- On Windows, protected paths match whether a command writes `C:\Users\me`,
+  `C:/Users/me` or Git Bash's `/c/Users/me`, in any case.
+- Shim commands refuse to run on Windows with a clear message instead of failing
+  at exec time.
+
 ## [1.4.1] - 2026-10-16
 
 ### Fixed
