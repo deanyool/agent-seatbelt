@@ -194,8 +194,10 @@ func bashRuns(t testing.TB, bash, parent, src string) [][]string {
 	cmd.Dir = dir
 	cmd.Env = []string{"PATH=/nonexistent", "HOME=" + dir, "SEATBELT_LOG=" + log}
 	cmd.WaitDelay = time.Second
+	isolate(cmd)
 	_ = cmd.Run()
 	time.Sleep(5 * time.Millisecond) // let background jobs finish writing
+	reap(cmd)
 	data, err := os.ReadFile(log)
 	if err != nil {
 		t.Fatal(err)
